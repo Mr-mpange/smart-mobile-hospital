@@ -163,16 +163,36 @@ async function runMigrations() {
 }
 
 /**
- * Insert sample doctors if doctors table is empty
+ * Insert sample data if tables are empty
  */
 async function insertSampleDataIfNeeded() {
   try {
+    const bcrypt = require('bcryptjs');
+    
+    // Insert default admin if admins table is empty
+    const [admins] = await pool.query('SELECT COUNT(*) as count FROM admins');
+    
+    if (admins[0].count === 0) {
+      console.log('📝 Creating default admin...');
+      
+      const adminPassword = await bcrypt.hash('admin123', 10);
+      
+      await pool.query(
+        `INSERT INTO admins (name, email, password_hash, role) 
+         VALUES (?, ?, ?, ?)`,
+        ['System Admin', 'admin@smarthealth.com', adminPassword, 'super_admin']
+      );
+      
+      console.log('✅ Default admin created');
+      console.log('   Email: admin@smarthealth.com');
+      console.log('   Password: admin123');
+    }
+    
+    // Insert sample doctors if doctors table is empty
     const [doctors] = await pool.query('SELECT COUNT(*) as count FROM doctors');
     
     if (doctors[0].count === 0) {
       console.log('📝 Inserting sample doctors...');
-      
-      const bcrypt = require('bcryptjs');
       
       const sampleDoctors = [
         {
@@ -225,7 +245,7 @@ async function insertSampleDataIfNeeded() {
 async function getMigrationStatus() {
   try {
     const tables = [
-      'users', 'doctors', 'cases', 'transactions', 'offers',
+      'admins', 'users', 'doctors', 'cases', 'transactions', 'offers',
       'ussd_sessions', 'sms_queue', 'ratings', 'voice_sessions', 'doctor_call_queue'
     ];
 

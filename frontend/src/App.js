@@ -5,11 +5,19 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" />;
+}
+
+function AdminRoute({ children }) {
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+  return token && userType === 'admin' ? children : <Navigate to="/admin/login" />;
 }
 
 function App() {
@@ -18,6 +26,7 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
+            {/* Doctor Routes */}
             <Route path="/login" element={<Login />} />
             <Route
               path="/dashboard"
@@ -27,6 +36,18 @@ function App() {
                 </PrivateRoute>
               }
             />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
           <ToastContainer position="top-right" autoClose={3000} />

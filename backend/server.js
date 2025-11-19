@@ -11,6 +11,7 @@ const smsRoutes = require('./routes/sms.routes');
 const doctorRoutes = require('./routes/doctor.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const voiceRoutes = require('./routes/voice.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Import cron jobs
 const cronJobs = require('./utils/cron');
@@ -58,6 +59,7 @@ app.use('/api/sms', smsRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/admin', adminRoutes);
 
 /**
  * Error handling middleware
