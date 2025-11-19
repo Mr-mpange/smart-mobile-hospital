@@ -31,21 +31,16 @@ cd ..
 echo [OK] Frontend dependencies ready
 echo.
 
-REM Step 2: Setup database
-echo [2/3] Setting up database...
-echo This will create all tables...
-call npm run db:setup
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo [WARNING] Database setup had issues
-    echo Make sure MySQL is running and credentials in .env are correct
-    echo.
-    echo To setup database manually:
-    echo   1. Start MySQL
-    echo   2. Run: npm run db:setup
-    echo.
+REM Step 2: Check database (auto-created on server start!)
+echo [2/3] Checking database configuration...
+echo.
+echo [INFO] Database tables are now created automatically!
+echo       Just start the server and tables will be ready.
+echo.
+if not exist .env (
+    echo [WARNING] .env file not found - database won't connect
 ) else (
-    echo [OK] Database setup complete
+    echo [OK] .env file exists
 )
 echo.
 
