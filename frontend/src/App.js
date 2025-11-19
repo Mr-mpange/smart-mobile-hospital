@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import ModernAdminDashboard from './pages/ModernAdminDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -41,6 +42,14 @@ function App() {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/admin/dashboard"
+              element={
+                <AdminRoute>
+                  <ModernAdminDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/dashboard/classic"
               element={
                 <AdminRoute>
                   <AdminDashboard />
