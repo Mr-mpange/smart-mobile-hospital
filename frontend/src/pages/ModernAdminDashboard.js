@@ -3,7 +3,7 @@ import {
   FiHome, FiClock, FiCheckCircle, FiAlertCircle, FiBarChart2, 
   FiBell, FiSettings, FiMenu, FiX, FiSearch, FiDownload,
   FiUser, FiLogOut, FiMoon, FiSun, FiEye, FiCheck, FiXCircle,
-  FiUsers, FiFileText, FiActivity, FiTrendingUp
+  FiUsers, FiFileText, FiActivity, FiTrendingUp, FiPlus
 } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement } from 'chart.js';
 import { Pie, Bar, Line } from 'react-chartjs-2';
@@ -11,6 +11,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './ModernAdminDashboard.css';
 import api from '../services/api';
+import AddDoctorModal from '../components/AddDoctorModal';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement);
@@ -21,6 +22,7 @@ function ModernAdminDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [stats, setStats] = useState(null);
   const [doctors, setDoctors] = useState([]);
@@ -62,9 +64,21 @@ function ModernAdminDashboard() {
     }
   };
 
+  const handleAddDoctor = async (doctorData) => {
+    try {
+      await api.post('/admin/doctors', doctorData);
+      toast.success('Doctor added successfully!');
+      loadData();
+      setShowAddModal(false);
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to add doctor');
+      throw error;
+    }
+  };
+
   const handleApprove = async (doctorId) => {
     try {
-      await api.put(`/admin/doctors/${doctorId}`, { is_verified: true });
+      await api.put(`/admin/doctors/${doctorId}`, { is_active: true });
       toast.success('Doctor verified successfully!');
       loadData();
       setShowModal(false);
@@ -452,10 +466,16 @@ function ModernAdminDashboard() {
             <div className="verified-section">
               <div className="section-header">
                 <h2>Verified Doctors</h2>
-                <button className="export-btn" onClick={exportToCSV}>
-                  <FiDownload />
-                  Export
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button className="add-doctor-btn" onClick={() => setShowAddModal(true)}>
+                    <FiPlus />
+                    Add Doctor
+                  </button>
+                  <button className="export-btn" onClick={exportToCSV}>
+                    <FiDownload />
+                    Export
+                  </button>
+                </div>
               </div>
               
               <div className="data-table">
@@ -639,6 +659,12 @@ function ModernAdminDashboard() {
           </div>
         </div>
       )}
+
+      <AddDoctorModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSubmit={handleAddDoctor}
+      />
 
       <ToastContainer position="top-right" autoClose={3000} />
     </div>

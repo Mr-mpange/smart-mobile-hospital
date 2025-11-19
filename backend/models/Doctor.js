@@ -29,6 +29,73 @@ class Doctor {
   }
 
   /**
+   * Create new doctor
+   */
+  static async create(doctorData) {
+    const { name, phone, email, password_hash, specialization, fee } = doctorData;
+    
+    const [result] = await pool.query(
+      `INSERT INTO doctors (name, phone, email, password_hash, specialization, fee, is_active) 
+       VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
+      [name, phone, email, password_hash, specialization, fee]
+    );
+    
+    return result.insertId;
+  }
+
+  /**
+   * Update doctor
+   */
+  static async update(id, updates) {
+    const fields = [];
+    const values = [];
+    
+    if (updates.name) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.phone) {
+      fields.push('phone = ?');
+      values.push(updates.phone);
+    }
+    if (updates.email) {
+      fields.push('email = ?');
+      values.push(updates.email);
+    }
+    if (updates.password_hash) {
+      fields.push('password_hash = ?');
+      values.push(updates.password_hash);
+    }
+    if (updates.specialization) {
+      fields.push('specialization = ?');
+      values.push(updates.specialization);
+    }
+    if (updates.fee !== undefined) {
+      fields.push('fee = ?');
+      values.push(updates.fee);
+    }
+    if (updates.is_active !== undefined) {
+      fields.push('is_active = ?');
+      values.push(updates.is_active);
+    }
+    if (updates.is_verified !== undefined) {
+      fields.push('is_active = ?');
+      values.push(updates.is_verified);
+    }
+    
+    if (fields.length === 0) return false;
+    
+    values.push(id);
+    
+    const [result] = await pool.query(
+      `UPDATE doctors SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+    
+    return result.affectedRows > 0;
+  }
+
+  /**
    * Verify doctor password
    */
   static async verifyPassword(password, hash) {
