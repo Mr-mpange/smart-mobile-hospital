@@ -1,0 +1,128 @@
+.case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.case-card {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: white;
+}
+
+.case-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+  transform: translateY(-2px);
+}
+
+.case-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.case-info h4 {
+  color: var(--text-primary);
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.case-phone {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.case-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.priority-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #fef3c7;
+  color: #f59e0b;
+}
+
+.case-body {
+  margin-bottom: 12px;
+}
+
+.case-symptoms,
+.case-response {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.case-symptoms strong,
+.case-response strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.case-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.case-time {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.consultation-type {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.consultation-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .case-card {
+    padding: 16px;
+  }
+
+  .case-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .case-badges {
+    width: 100%;
+  }
+}

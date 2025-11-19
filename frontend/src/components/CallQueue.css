@@ -1,0 +1,216 @@
+.call-queue {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.call-queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.call-queue-header h3 {
+  color: var(--text-primary);
+  font-size: 20px;
+  margin: 0;
+}
+
+.call-count {
+  background: #ef4444;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.call-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.call-card {
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fef2f2;
+  animation: callPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes callPulse {
+  0%, 100% {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.call-info h4 {
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.call-patient {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+
+.call-phone {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.call-time {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.call-symptoms {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.call-symptoms strong {
+  color: var(--text-secondary);
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.call-symptoms p {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.call-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.accept-button,
+.reject-button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.accept-button {
+  background: #10b981;
+  color: white;
+}
+
+.accept-button:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.reject-button {
+  background: #6b7280;
+  color: white;
+}
+
+.reject-button:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+.accept-button:disabled,
+.reject-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.call-warning {
+  background: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.call-queue-loading,
+.call-queue-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+
+.call-queue-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.call-queue-empty p {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .call-queue {
+    padding: 16px;
+  }
+
+  .call-card {
+    padding: 16px;
+  }
+
+  .call-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .call-actions {
+    flex-direction: column;
+  }
+
+  .accept-button,
+  .reject-button {
+    width: 100%;
+  }
+}
