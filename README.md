@@ -124,8 +124,16 @@ smarthealth/
 
 ## 🔑 Default Credentials
 
+### Admin Login
+```
+URL: http://localhost:3000/admin/login
+Email: admin@smarthealth.com
+Password: admin123
+```
+
 ### Doctor Login
 ```
+URL: http://localhost:3000/login
 Email: john.kamau@smarthealth.com
 Password: doctor123
 ```
@@ -162,6 +170,7 @@ curl -X POST http://localhost:5000/api/ussd \
 
 ## 📚 Documentation
 
+- **ADMIN_GUIDE.md** - Complete admin system guide
 - **INSTALLATION.md** - Detailed installation guide
 - **WINDOWS_SETUP.md** - Windows-specific setup
 - **START_HERE.md** - Quick troubleshooting guide
