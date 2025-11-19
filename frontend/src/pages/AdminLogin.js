@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import './Login.css';
+import './AdminLogin.css';
 
 function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -27,56 +27,98 @@ function AdminLogin() {
       // Redirect to admin dashboard
       window.location.href = '/admin/dashboard';
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <div className="login-header">
-          <h1>🏥 SmartHealth</h1>
-          <h2>Admin Login</h2>
+    <div className="admin-login-container">
+      <div className="admin-login-background">
+        <div className="gradient-circle circle-1"></div>
+        <div className="gradient-circle circle-2"></div>
+        <div className="gradient-circle circle-3"></div>
+      </div>
+
+      <div className="admin-login-box">
+        <div className="admin-login-header">
+          <div className="logo">
+            <span className="logo-icon">🏥</span>
+            <h1>SmartHealth</h1>
+          </div>
+          <h2>Admin Portal</h2>
+          <p>Manage your healthcare system</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && (
+          <div className="error-message">
+            <span className="error-icon">⚠️</span>
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="admin-login-form">
           <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@smarthealth.com"
-              required
-            />
+            <label>Email Address</label>
+            <div className="input-wrapper">
+              <span className="input-icon">📧</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@smarthealth.com"
+                required
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
+            <div className="input-wrapper">
+              <span className="input-icon">🔒</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+              />
+            </div>
           </div>
 
-          <button type="submit" className="login-button" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login as Admin'}
+          <button type="submit" className="admin-login-button" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Logging in...
+              </>
+            ) : (
+              <>
+                <span>Login to Dashboard</span>
+                <span className="arrow">→</span>
+              </>
+            )}
           </button>
         </form>
 
-        <div className="login-footer">
-          <p>Default credentials:</p>
-          <p><strong>Email:</strong> admin@smarthealth.com</p>
-          <p><strong>Password:</strong> admin123</p>
-          <hr />
-          <a href="/login">Login as Doctor →</a>
+        <div className="admin-login-footer">
+          <div className="credentials-box">
+            <p className="credentials-title">🔑 Default Credentials</p>
+            <div className="credentials-info">
+              <p><strong>Email:</strong> admin@smarthealth.com</p>
+              <p><strong>Password:</strong> admin123</p>
+            </div>
+          </div>
+          
+          <div className="divider">
+            <span>or</span>
+          </div>
+          
+          <a href="/login" className="doctor-link">
+            <span>Login as Doctor</span>
+            <span className="arrow">→</span>
+          </a>
         </div>
       </div>
     </div>
