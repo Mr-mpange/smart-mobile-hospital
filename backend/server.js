@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
+const { runMigrations } = require('./config/migrations');
 const ussdRoutes = require('./routes/ussd.routes');
 const smsRoutes = require('./routes/sms.routes');
 const doctorRoutes = require('./routes/doctor.routes');
@@ -86,6 +87,13 @@ async function startServer() {
     if (!dbConnected) {
       console.error('Failed to connect to database. Exiting...');
       process.exit(1);
+    }
+
+    // Run database migrations (auto-create/update tables)
+    const migrationSuccess = await runMigrations();
+    
+    if (!migrationSuccess) {
+      console.warn('⚠️  Migrations completed with warnings, but server will continue...');
     }
 
     // Start cron jobs

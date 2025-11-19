@@ -1,6 +1,7 @@
 const express = require('express');
 const DoctorController = require('../controllers/doctor.controller');
 const { authenticateDoctor } = require('../middleware/auth');
+const { getMigrationStatus } = require('../config/migrations');
 
 const router = express.Router();
 
@@ -11,6 +12,23 @@ const router = express.Router();
 // Public routes
 router.post('/login', DoctorController.login);
 router.get('/available', DoctorController.getAvailable);
+
+// Database status endpoint
+router.get('/db-status', async (req, res) => {
+  try {
+    const status = await getMigrationStatus();
+    res.json({
+      success: true,
+      database: process.env.DB_NAME,
+      tables: status
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Protected routes (require authentication)
 router.post('/logout', authenticateDoctor, DoctorController.logout);

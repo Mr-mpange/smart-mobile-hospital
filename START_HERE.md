@@ -10,7 +10,7 @@
 ### Issue 2: Database Tables Missing ❌
 **Error:** `Table 'smarthealth.sms_queue' doesn't exist`
 
-**Solution:** Run database setup
+**Solution:** Tables are now created automatically! Just start the server.
 
 ## 🎯 Quick Fix (2 Steps)
 
@@ -32,12 +32,11 @@ cd frontend
 npm install
 cd ..
 
-REM Setup database (creates all tables)
-npm run db:setup
-
-REM Start the application
+REM Start the application (database tables auto-created!)
 npm run dev
 ```
+
+**Note:** Database tables are now created automatically when you start the server!
 
 ## ⚡ Even Easier (One-Click)
 
@@ -63,9 +62,9 @@ Then double-click: **`start.cmd`** to run the app
 ❌ react-scripts not installed
 ```
 
-### Database ❌ Needs Setup
+### Database ✅ Auto-Setup!
 ```
-❌ Tables don't exist yet
+✅ Tables created automatically on server start
 ```
 
 ## 📋 Manual Steps (If Scripts Don't Work)
@@ -81,16 +80,16 @@ npm install
 
 Wait for installation to complete (may take 2-3 minutes).
 
-### 2. Setup Database
+### 2. Setup Database (Optional - Auto-Created!)
 
-Make sure MySQL is running, then:
+Database tables are now created automatically when you start the server!
+
+But if you want to manually setup:
 
 ```cmd
 cd C:\Users\Administrator\Desktop\one-two\final
 npm run db:setup
 ```
-
-This creates all database tables.
 
 ### 3. Start Application
 
@@ -150,8 +149,32 @@ cd ..
 npm run db:setup
 ```
 
+## �  Auto-Migration Feature (NEW!)
+
+The system now automatically:
+- ✅ Creates database if it doesn't exist
+- ✅ Creates all tables on server start
+- ✅ Adds new columns when schema updates
+- ✅ Inserts sample doctors
+- ✅ Never deletes existing data
+
+**No manual database setup needed!** Just start the server and everything is ready.
+
+Check migration status:
+```cmd
+curl http://localhost:5000/api/doctors/db-status
+```
+
+Or test migrations:
+```cmd
+node test-migrations.js
+```
+
+See **docs/AUTO_MIGRATIONS.md** for details.
+
 ## 📚 More Help
 
+- **docs/AUTO_MIGRATIONS.md** - Auto-migration system guide
 - **WINDOWS_SETUP.md** - Complete Windows guide
 - **QUICK_FIX.md** - Frontend fix guide
 - **INSTALLATION.md** - Detailed installation
