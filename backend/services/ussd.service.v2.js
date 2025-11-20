@@ -3,6 +3,7 @@ const Doctor = require('../models/Doctor');
 const Case = require('../models/Case');
 const Offer = require('../models/Offer');
 const PaymentService = require('./payment.service');
+const SMSService = require('./sms.service');
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
@@ -160,6 +161,33 @@ Thank you!`;
         authenticated: true,
         userId: user.id 
       });
+      
+      // Send welcome SMS
+      try {
+        const welcomeMessage = user.language === 'sw'
+          ? `Karibu SmartHealth, ${name}!
+
+Umesajiliwa kikamilifu.
+Una ushauri 3 wa BURE!
+
+Piga: ${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+          : `Welcome to SmartHealth, ${name}!
+
+Registration successful.
+You have 3 FREE consultations!
+
+Dial: ${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
+        
+        await SMSService.sendSMS(phoneNumber, welcomeMessage);
+        console.log(`[USSD] Welcome SMS sent to ${phoneNumber}`);
+      } catch (smsError) {
+        console.error('[USSD] Failed to send welcome SMS:', smsError.message);
+        // Continue even if SMS fails
+      }
       
       return `END Registration Successful!
 
@@ -421,6 +449,28 @@ Try again!`;
       // Check for offers
       await Offer.checkAndCreateOffers(user.id, user.consultation_count + 1);
 
+      // Send confirmation SMS
+      try {
+        const confirmMessage = lang === 'sw'
+          ? `Asante! Ushauri wako umepokelewa.
+
+Kesi: #${caseData.id}
+Daktari atakujibu kupitia SMS ndani ya dakika 5-30.
+
+SmartHealth`
+          : `Thank you! Your consultation has been received.
+
+Case: #${caseData.id}
+A doctor will respond via SMS within 5-30 minutes.
+
+SmartHealth`;
+        
+        await SMSService.sendSMS(user.phone, confirmMessage);
+        console.log(`[USSD] Confirmation SMS sent to ${user.phone} for case #${caseData.id}`);
+      } catch (smsError) {
+        console.error('[USSD] Failed to send confirmation SMS:', smsError.message);
+      }
+      
       return lang === 'sw'
         ? `END Imepokelewa!
 
@@ -803,6 +853,34 @@ Thank you!`;
       // Check for new offers
       await Offer.checkAndCreateOffers(user.id, user.consultation_count + 1);
 
+      // Send confirmation SMS
+      try {
+        const confirmMessage = lang === 'sw'
+          ? `Malipo yamekamilika! Ushauri wako umepokelewa.
+
+Daktari: ${selectedDoctor.name}
+Kiasi: KES ${finalAmount}
+Kesi: #${caseData.id}
+
+Daktari atakujibu kupitia SMS ndani ya dakika 5-30.
+
+SmartHealth`
+          : `Payment completed! Your consultation has been received.
+
+Doctor: ${selectedDoctor.name}
+Amount: KES ${finalAmount}
+Case: #${caseData.id}
+
+Doctor will respond via SMS within 5-30 minutes.
+
+SmartHealth`;
+        
+        await SMSService.sendSMS(user.phone, confirmMessage);
+        console.log(`[USSD] Confirmation SMS sent to ${user.phone} for case #${caseData.id}`);
+      } catch (smsError) {
+        console.error('[USSD] Failed to send confirmation SMS:', smsError.message);
+      }
+      
       return lang === 'sw'
         ? `END Malipo Yamekamilika!
 

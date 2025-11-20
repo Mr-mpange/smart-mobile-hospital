@@ -17,6 +17,11 @@ class SMSService {
       // Use shortcode for two-way SMS
       const from = process.env.AT_SMS_SHORTCODE || null;
       
+      console.log(`[SMS] Sending SMS via Africa's Talking`);
+      console.log(`[SMS] To: ${phone}`);
+      console.log(`[SMS] From: ${from || 'default'}`);
+      console.log(`[SMS] Username: ${process.env.AT_USERNAME}`);
+      
       const params = new URLSearchParams({
         username: process.env.AT_USERNAME,
         to: phone,
@@ -28,8 +33,15 @@ class SMSService {
         params.append('from', from);
       }
 
+      // For sandbox, use sandbox endpoint
+      const apiUrl = process.env.AT_USERNAME === 'sandbox'
+        ? 'https://api.sandbox.africastalking.com/version1/messaging'
+        : 'https://api.africastalking.com/version1/messaging';
+      
+      console.log(`[SMS] API URL: ${apiUrl}`);
+      
       const response = await axios.post(
-        'https://api.africastalking.com/version1/messaging',
+        apiUrl,
         params.toString(),
         {
           headers: {
@@ -40,10 +52,14 @@ class SMSService {
         }
       );
 
-      console.log('SMS sent successfully:', phone, 'via shortcode:', from || 'default');
+      console.log('[SMS] ✅ SMS sent successfully!');
+      console.log('[SMS] Response:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error('SMS sending failed:', error.message);
+      console.error('[SMS] ❌ SMS sending failed:', error.message);
+      if (error.response) {
+        console.error('[SMS] API Error Response:', error.response.data);
+      }
       
       // Queue for retry
       await this.queueSMS(phone, message);
@@ -320,19 +336,39 @@ Au piga ${process.env.AT_USSD_CODE}`
    * Send doctor response to patient
    */
   static async sendDoctorResponse(caseId) {
+    console.log(`[SMS] Preparing to send doctor response for case #${caseId}`);
+    
     const caseData = await Case.findById(caseId);
     
     if (!caseData || !caseData.response) {
+      console.log(`[SMS] Case #${caseId} not found or has no response`);
       return;
     }
 
+    console.log(`[SMS] Case found - Doctor: ${caseData.doctor_name}, User ID: ${caseData.user_id}`);
+    
     const user = await User.findById(caseData.user_id);
+    
+    if (!user) {
+      console.log(`[SMS] User #${caseData.user_id} not found`);
+      return;
+    }
+    
+    console.log(`[SMS] User found - Phone: ${user.phone}, Language: ${user.language}`);
     
     const message = user.language === 'sw'
       ? `Jibu kutoka kwa ${caseData.doctor_name}:\n\n${caseData.response}\n\nKesi #${caseId}`
       : `Response from ${caseData.doctor_name}:\n\n${caseData.response}\n\nCase #${caseId}`;
     
-    await this.sendSMS(user.phone, message);
+    console.log(`[SMS] Sending SMS to ${user.phone}`);
+    console.log(`[SMS] Message: ${message.substring(0, 100)}...`);
+    
+    const result = await this.sendSMS(user.phone, message);
+    
+    console.log(`[SMS] SMS sent successfully!`);
+    console.log(`[SMS] Africa's Talking Response:`, result);
+    
+    return result;
   }
 }
 
