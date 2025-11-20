@@ -1,4 +1,4 @@
-const USSDService = require('../services/ussd.service');
+const USSDService = require('../services/ussd.service.v2');
 
 /**
  * USSD Controller

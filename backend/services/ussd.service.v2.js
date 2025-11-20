@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Case = require('../models/Case');
 const Offer = require('../models/Offer');
+const PaymentService = require('./payment.service');
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
@@ -13,45 +14,85 @@ class USSDServiceV2 {
    * Main USSD handler
    */
   static async handleUSSD(sessionId, serviceCode, phoneNumber, text) {
-    // Check if user exists
-    let user = await User.findByPhone(phoneNumber);
-    
-    // Parse user input
-    const inputs = text ? text.split('*') : [];
-    
-    // NEW USER FLOW - Registration required
-    if (!user) {
-      return this.handleRegistration(sessionId, phoneNumber, inputs);
-    }
-    
-    // EXISTING USER FLOW - Login required
-    const session = await this.getSession(sessionId);
-    
-    // Check if user is authenticated in this session
-    if (!session || !session.authenticated) {
-      return this.handleLogin(sessionId, user, inputs);
-    }
-    
-    // User is authenticated - show main menu
-    const language = user.language || 'en';
-    
-    if (inputs.length === 0 || text === '') {
-      return this.mainMenu(language, user);
-    }
-    
-    // Route to appropriate menu
-    if (inputs[0] === '1') {
-      return this.handleTrialFlow(user, inputs, language, sessionId);
-    } else if (inputs[0] === '2') {
-      return this.handlePaidFlow(user, inputs, language, sessionId);
-    } else if (inputs[0] === '3') {
-      return this.handleHistory(user, inputs, language);
-    } else if (inputs[0] === '4') {
-      return this.handleLanguageChange(user, inputs);
-    } else if (inputs[0] === '5') {
-      return this.handleLogout(sessionId, language);
-    } else {
-      return this.invalidOption(language);
+    try {
+      // Check if user exists
+      let user = await User.findByPhone(phoneNumber);
+      
+      // Parse user input
+      const inputs = text ? text.split('*') : [];
+      
+      // Log without exposing sensitive data
+      console.log(`[USSD] Session: ${sessionId}, Phone: ${phoneNumber}, InputCount: ${inputs.length}`);
+      
+      // NEW USER FLOW - Registration required
+      if (!user) {
+        return this.handleRegistration(sessionId, phoneNumber, inputs);
+      }
+      
+      // EXISTING USER FLOW - Login required
+      const session = await this.getSession(sessionId);
+      console.log(`[USSD] Session data:`, session ? { authenticated: session.authenticated, step: session.step } : 'null');
+      
+      // Check if user has pending payment
+      if (session && session.data && session.data.paymentPending) {
+        return this.handlePaymentVerification(user, session.data, lang, sessionId);
+      }
+      
+      // Check if user is authenticated in this session
+      if (!session || !session.authenticated) {
+        return this.handleLogin(sessionId, user, inputs);
+      }
+      
+      // User is authenticated - show main menu
+      const language = user.language || 'en';
+      
+      if (inputs.length === 0 || text === '') {
+        return this.mainMenu(language, user);
+      }
+      
+      // Check if first input is a PIN (4 digits) - skip it if so
+      let menuInputs = inputs;
+      if (inputs.length > 1 && /^\d{4}$/.test(inputs[0])) {
+        // First input is a PIN, use inputs starting from index 1
+        menuInputs = inputs.slice(1);
+        console.log(`[USSD] Skipping PIN, using menu inputs from index 1, menuInputs:`, menuInputs);
+      } else {
+        console.log(`[USSD] Using original inputs as menuInputs:`, menuInputs);
+      }
+      
+      // Route to appropriate menu
+      console.log(`[USSD] Routing to option: ${menuInputs[0]}`);
+      
+      // Update session to maintain authentication (preserve existing data)
+      const existingSession = await this.getSessionData(sessionId) || {};
+      await this.updateSessionData(sessionId, { 
+        ...existingSession,
+        authenticated: true,
+        userId: user.id,
+        step: 'menu_navigation'
+      });
+      
+      if (menuInputs[0] === '1') {
+        // Pass inputs without the menu option number
+        return this.handleTrialFlow(user, menuInputs.slice(1), language, sessionId);
+      } else if (menuInputs[0] === '2') {
+        // Pass inputs without the menu option number
+        return this.handlePaidFlow(user, menuInputs.slice(1), language, sessionId);
+      } else if (menuInputs[0] === '3') {
+        // Pass inputs without the menu option number
+        return this.handleHistory(user, menuInputs.slice(1), language);
+      } else if (menuInputs[0] === '4') {
+        // Pass inputs without the menu option number
+        return this.handleLanguageChange(user, menuInputs.slice(1));
+      } else if (menuInputs[0] === '5') {
+        return this.handleLogout(sessionId, language);
+      } else {
+        console.log(`[USSD] Invalid option: ${menuInputs[0]}`);
+        return this.invalidOption(language);
+      }
+    } catch (error) {
+      console.error('[USSD] Error in handleUSSD:', error);
+      throw error;
     }
   }
 
@@ -62,9 +103,10 @@ class USSDServiceV2 {
     // Step 1: Welcome and ask for name
     if (inputs.length === 0) {
       await this.saveSession(sessionId, null, phoneNumber, 'registration_name', {});
-      return `CON Welcome to SmartHealth!
+      return `CON SmartHealth
+Welcome!
 You are a new user.
-
+Get 3 FREE consultations!
 Please enter your full name:`;
     }
     
@@ -73,25 +115,38 @@ Please enter your full name:`;
       const name = inputs[0].trim();
       
       if (name.length < 3) {
-        return `END Name must be at least 3 characters.
-Please dial again.`;
+        return `END Name Too Short
+
+Name must be at least 3 characters.
+
+Please dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
       }
       
       await this.saveSession(sessionId, null, phoneNumber, 'registration_password', { name });
       return `CON Hello ${name}!
-
-For security, create a 4-digit PIN:
-(This will protect your medical records)`;
+Create a 4-digit PIN:
+(This will protect your medical records)
+Example: 1234`;
     }
     
     // Step 3: Confirm password and create account
-    if (inputs.length === 2) {
+    if (inputs.length >= 2) {
       const name = inputs[0].trim();
       const password = inputs[1].trim();
       
       if (!/^\d{4}$/.test(password)) {
-        return `END PIN must be exactly 4 digits.
-Please dial again.`;
+        return `END Invalid PIN
+
+PIN must be exactly 4 digits.
+Example: 1234
+
+Please dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
       }
       
       // Hash password
@@ -106,13 +161,95 @@ Please dial again.`;
         userId: user.id 
       });
       
-      return `END Registration successful!
+      return `END Registration Successful!
 
 Name: ${name}
 Phone: ${phoneNumber}
 Trial: 3 FREE consultations
 
-Dial ${process.env.AT_USSD_CODE || '*384*34153#'} again to start!`;
+Dial to start:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Welcome to SmartHealth!`;
+    }
+  }
+
+  /**
+   * Handle payment verification after M-Pesa payment
+   */
+  static async handlePaymentVerification(user, sessionData, lang, sessionId) {
+    try {
+      // Check payment status
+      const transaction = await PaymentService.checkPaymentStatus(sessionData.transactionId);
+      
+      if (transaction.status === 'completed') {
+        // Payment successful - ask for symptoms
+        return lang === 'sw'
+          ? `CON Malipo Yamekamilika!
+
+Sasa andika dalili zako kwa undani:
+(Angalau sentensi 2)
+
+Mfano: Nina maumivu ya tumbo na kuhara kwa siku 3`
+          : `CON Payment Completed!
+
+Now describe your symptoms in detail:
+(At least 2 sentences)
+
+Example: I have stomach pain and diarrhea for 3 days`;
+      } else if (transaction.status === 'pending') {
+        // Payment still pending
+        return lang === 'sw'
+          ? `END Malipo Bado Yanasubiri
+
+Tafadhali lipa kwanza kupitia SMS.
+Kisha piga tena:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Kesi: #${sessionData.caseId}
+Asante!`
+          : `END Payment Still Pending
+
+Please complete payment via SMS.
+Then dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Case: #${sessionData.caseId}
+Thank you!`;
+      } else {
+        // Payment failed
+        await this.clearSession(sessionId);
+        return lang === 'sw'
+          ? `END Malipo Yameshindwa
+
+Tafadhali jaribu tena.
+
+Piga:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+          : `END Payment Failed
+
+Please try again.
+
+Dial:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
+      }
+    } catch (error) {
+      console.error('[USSD] Payment verification error:', error);
+      return lang === 'sw'
+        ? `END Kosa la Kuthibitisha Malipo
+
+Tafadhali jaribu tena baadaye.
+
+Asante!`
+        : `END Payment Verification Error
+
+Please try again later.
+
+Thank you!`;
     }
   }
 
@@ -123,23 +260,28 @@ Dial ${process.env.AT_USSD_CODE || '*384*34153#'} again to start!`;
     // Step 1: Ask for PIN
     if (inputs.length === 0) {
       await this.saveSession(sessionId, user.id, user.phone, 'login_password', {});
-      return `CON Welcome back, ${user.name || 'User'}!
-
+      return `CON SmartHealth
+Welcome back ${user.name || 'User'}
 Enter your 4-digit PIN:`;
     }
     
-    // Step 2: Verify PIN
-    if (inputs.length === 1) {
+    // Step 2: Verify PIN and handle menu selection
+    if (inputs.length >= 1) {
       const password = inputs[0].trim();
       
       // Verify password
       const isValid = await User.verifyPassword(user.id, password);
       
       if (!isValid) {
-        return `END Incorrect PIN.
+        return `END Incorrect PIN
 
-Please dial again and try again.
-Forgot PIN? Contact support.`;
+The PIN you entered is wrong.
+
+Please dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Forgot PIN? Contact support.
+Thank you!`;
       }
       
       // Mark session as authenticated
@@ -149,7 +291,37 @@ Forgot PIN? Contact support.`;
       });
       
       const language = user.language || 'en';
-      return this.mainMenu(language, user);
+      
+      // If user just entered PIN (no menu selection yet)
+      if (inputs.length === 1) {
+        console.log(`[USSD] Login successful, showing main menu`);
+        return this.mainMenu(language, user);
+      }
+      
+      // If user selected a menu option after PIN (inputs.length >= 2)
+      const menuOption = inputs[1];
+      console.log(`[USSD] Login successful, menu option selected: ${menuOption}`);
+      
+      // Keep session authenticated for subsequent requests
+      await this.saveSession(sessionId, user.id, user.phone, 'menu_selected', { 
+        authenticated: true,
+        userId: user.id,
+        menuOption: menuOption
+      });
+      
+      if (menuOption === '1') {
+        return this.handleTrialFlow(user, ['1', ...inputs.slice(2)], language, sessionId);
+      } else if (menuOption === '2') {
+        return this.handlePaidFlow(user, ['2', ...inputs.slice(2)], language, sessionId);
+      } else if (menuOption === '3') {
+        return this.handleHistory(user, ['3', ...inputs.slice(2)], language);
+      } else if (menuOption === '4') {
+        return this.handleLanguageChange(user, ['4', ...inputs.slice(2)]);
+      } else if (menuOption === '5') {
+        return this.handleLogout(sessionId, language);
+      } else {
+        return this.invalidOption(language);
+      }
     }
   }
 
@@ -157,24 +329,26 @@ Forgot PIN? Contact support.`;
    * Main menu (after authentication)
    */
   static mainMenu(lang = 'en', user) {
-    const trialInfo = user.trial_end && new Date(user.trial_end) > new Date() 
-      ? `(${3 - user.consultation_count} free left)` 
-      : '';
+    const trialRemaining = user.trial_end && new Date(user.trial_end) > new Date() 
+      ? Math.max(0, 3 - (user.consultation_count || 0))
+      : 0;
     
     const menus = {
-      en: `CON SmartHealth - Main Menu
+      en: `CON SmartHealth
+Welcome ${user.name || 'User'}
 
-1. Free Trial ${trialInfo}
+1. Free Trial${trialRemaining > 0 ? ` (${trialRemaining} left)` : ' (Expired)'}
 2. Paid Consultation
 3. My History
 4. Change Language
 5. Logout`,
-      sw: `CON SmartHealth - Menyu Kuu
+      sw: `CON SmartHealth
+Karibu ${user.name || 'Mtumiaji'}
 
-1. Ushauri wa Bure ${trialInfo}
-2. Ushauri wa Malipo
-3. Historia Yangu
-4. Badilisha Lugha
+1. Bure${trialRemaining > 0 ? ` (${trialRemaining} zimebaki)` : ' (Imeisha)'}
+2. Malipo
+3. Historia
+4. Lugha
 5. Toka`
     };
     return menus[lang] || menus.en;
@@ -186,25 +360,53 @@ Forgot PIN? Contact support.`;
   static async handleTrialFlow(user, inputs, lang, sessionId) {
     const isInTrial = await User.isInTrial(user.id);
     
-    if (inputs.length === 1) {
+    if (inputs.length === 0) {
       if (!isInTrial) {
         return lang === 'sw' 
-          ? 'END Kipindi chako cha bure kimeisha.\nTafadhali chagua malipo ya ushauri.'
-          : 'END Your trial period has ended.\nPlease choose paid consultation.';
+          ? `END Kipindi cha Bure Kimeisha
+
+Umeshatumia ushauri 3 wa bure.
+Tafadhali chagua "Malipo" kutoka menyu kuu.
+
+Asante!`
+          : `END Trial Period Ended
+
+You've used all 3 free consultations.
+Please choose "Paid Consultation" from main menu.
+
+Thank you!`;
       }
       
+      const remaining = Math.max(0, 3 - (user.consultation_count || 0));
+      
       return lang === 'sw'
-        ? 'CON Andika dalili zako:\n(Angalau sentensi 2)'
-        : 'CON Enter your symptoms:\n(At least 2 sentences)';
+        ? `CON Ushauri wa Bure (${remaining} zimebaki)
+Andika dalili zako kwa undani:
+(Angalau sentensi 2)
+Mfano: Nina maumivu ya kichwa na homa kwa siku 2`
+        : `CON Free Trial Consultation (${remaining} remaining)
+Describe your symptoms in detail:
+(At least 2 sentences)
+Example: I have severe headache and fever for 2 days`;
     }
 
-    if (inputs.length === 2) {
-      const symptoms = inputs[1].trim();
+    if (inputs.length === 1) {
+      const symptoms = inputs[0].trim();
       
       if (symptoms.length < 20) {
         return lang === 'sw'
-          ? 'END Tafadhali andika dalili zako kwa undani zaidi.\nJaribu tena.'
-          : 'END Please provide more detailed symptoms.\nTry again.';
+          ? `END Maelezo Mafupi Sana
+
+Tafadhali eleza dalili zako kwa undani zaidi.
+Angalau sentensi 2 au maneno 20.
+
+Jaribu tena!`
+          : `END Description Too Short
+
+Please provide more detailed symptoms.
+At least 2 sentences or 20 words.
+
+Try again!`;
       }
 
       // Create case
@@ -220,8 +422,24 @@ Forgot PIN? Contact support.`;
       await Offer.checkAndCreateOffers(user.id, user.consultation_count + 1);
 
       return lang === 'sw'
-        ? `END Asante! Daktari atakujibu hivi karibuni kupitia SMS.\n\nKesi #${caseData.id}\nMuda: Dakika 5-30`
-        : `END Thank you! A doctor will respond via SMS shortly.\n\nCase #${caseData.id}\nTime: 5-30 minutes`;
+        ? `END Imepokelewa!
+
+Daktari atakujibu kupitia SMS.
+
+Kesi: #${caseData.id}
+Muda: Dakika 5-30
+Jibu: SMS
+
+Asante kutumia SmartHealth!`
+        : `END Received!
+
+A doctor will respond via SMS.
+
+Case: #${caseData.id}
+Time: 5-30 minutes
+Reply: SMS
+
+Thank you for using SmartHealth!`;
     }
   }
 
@@ -229,33 +447,52 @@ Forgot PIN? Contact support.`;
    * Handle paid consultation flow with PAYMENT FIRST
    */
   static async handlePaidFlow(user, inputs, lang, sessionId) {
-    // Step 1: Show available doctors
-    if (inputs.length === 1) {
+    // Step 1: Show available doctors (first time selecting paid consultation)
+    if (inputs.length === 0) {
       const doctors = await Doctor.getAvailable();
       
       if (doctors.length === 0) {
         return lang === 'sw'
-          ? 'END Hakuna madaktari wanaopatikana sasa.\nJaribu tena baadaye.'
-          : 'END No doctors available.\nPlease try again later.';
+          ? `END Hakuna Madaktari
+
+Samahani, hakuna madaktari wanaopatikana sasa.
+
+Tafadhali jaribu tena baadaye.
+
+Asante!`
+          : `END No Doctors Available
+
+Sorry, no doctors are available right now.
+
+Please try again later.
+
+Thank you!`;
       }
 
       let menu = lang === 'sw' 
-        ? 'CON Chagua Daktari:\n\n'
-        : 'CON Select Doctor:\n\n';
+        ? 'Chagua Daktari\n'
+        : 'Select Doctor\n';
       
       doctors.forEach((doc, index) => {
-        menu += `${index + 1}. Dr. ${doc.name}\n   ${doc.specialization}\n   KES ${doc.fee}\n\n`;
+        menu += `${index + 1}. Dr. ${doc.name}\n`;
+        menu += `${doc.specialization} - KES ${doc.fee}\n`;
       });
 
-      // Store doctors in session
-      await this.updateSessionData(sessionId, { doctors, step: 'doctor_selected' });
-
-      return menu;
+      // Store doctors in session (preserve authentication)
+      const currentSession = await this.getSessionData(sessionId) || {};
+      await this.updateSessionData(sessionId, { 
+        ...currentSession,
+        authenticated: true,
+        doctors, 
+        step: 'doctor_selected' 
+      });
+      
+      return 'CON ' + menu;
     }
 
-    // Step 2: PAYMENT - Show payment options
-    if (inputs.length === 2) {
-      const doctorIndex = parseInt(inputs[1]) - 1;
+    // Step 2: PAYMENT - Show payment options (after selecting doctor)
+    if (inputs.length === 1) {
+      const doctorIndex = parseInt(inputs[0]) - 1;
       const sessionData = await this.getSessionData(sessionId);
       
       if (!sessionData || !sessionData.doctors || !sessionData.doctors[doctorIndex]) {
@@ -279,9 +516,10 @@ Forgot PIN? Contact support.`;
         }
       }
 
-      // Store selected doctor and amount
+      // Store selected doctor and amount (preserve authentication)
       await this.updateSessionData(sessionId, { 
         ...sessionData,
+        authenticated: true,
         selectedDoctor,
         finalAmount,
         discount,
@@ -291,18 +529,44 @@ Forgot PIN? Contact support.`;
 
       if (finalAmount === 0) {
         return lang === 'sw'
-          ? `CON Hongera! Una ushauri wa BURE!\n\nDaktari: ${selectedDoctor.name}\nBei ya kawaida: KES ${selectedDoctor.fee}\nPunguzo: KES ${discount}\nBei yako: KES 0\n\n1. Endelea\n2. Rudi`
-          : `CON Congratulations! You have a FREE consultation!\n\nDoctor: ${selectedDoctor.name}\nRegular: KES ${selectedDoctor.fee}\nDiscount: KES ${discount}\nYour price: KES 0\n\n1. Continue\n2. Back`;
+          ? `CON HONGERA! Ushauri wa BURE!
+Daktari: ${selectedDoctor.name}
+Bei ya kawaida: KES ${selectedDoctor.fee}
+Punguzo: -KES ${discount}
+Bei yako: KES 0
+1. Endelea
+2. Rudi`
+          : `CON CONGRATULATIONS! FREE Consultation!
+Doctor: ${selectedDoctor.name}
+Regular price: KES ${selectedDoctor.fee}
+Discount: -KES ${discount}
+Your price: KES 0
+1. Continue
+2. Back`;
       }
 
       return lang === 'sw'
-        ? `CON MALIPO YANAHITAJIKA\n\nDaktari: ${selectedDoctor.name}\nBei: KES ${selectedDoctor.fee}${discount > 0 ? `\nPunguzo: -KES ${discount}` : ''}\nJumla: KES ${finalAmount}\n\nChagua njia ya malipo:\n1. M-Pesa\n2. Salio (KES ${user.balance})\n3. Rudi`
-        : `CON PAYMENT REQUIRED\n\nDoctor: ${selectedDoctor.name}\nFee: KES ${selectedDoctor.fee}${discount > 0 ? `\nDiscount: -KES ${discount}` : ''}\nTotal: KES ${finalAmount}\n\nSelect payment method:\n1. M-Pesa\n2. Balance (KES ${user.balance})\n3. Back`;
+        ? `CON MALIPO YANAHITAJIKA
+Daktari: ${selectedDoctor.name}
+Bei: KES ${selectedDoctor.fee}${discount > 0 ? `\nPunguzo: -KES ${discount}` : ''}
+Jumla: KES ${finalAmount}
+Chagua njia ya malipo:
+1. Malipo ya Simu
+2. Salio (KES ${user.balance})
+3. Rudi`
+        : `CON PAYMENT REQUIRED
+Doctor: ${selectedDoctor.name}
+Fee: KES ${selectedDoctor.fee}${discount > 0 ? `\nDiscount: -KES ${discount}` : ''}
+Total: KES ${finalAmount}
+Select payment method:
+1. Mobile Payment
+2. Balance (KES ${user.balance})
+3. Back`;
     }
 
     // Step 3: Process payment
-    if (inputs.length === 3) {
-      const paymentMethod = inputs[2];
+    if (inputs.length === 2) {
+      const paymentMethod = inputs[1];
       const sessionData = await this.getSessionData(sessionId);
       
       if (!sessionData || !sessionData.selectedDoctor) {
@@ -313,9 +577,16 @@ Forgot PIN? Contact support.`;
 
       // Handle free consultation
       if (finalAmount === 0 && paymentMethod === '1') {
+        // Apply the free offer
+        if (offer) {
+          await Offer.apply(offer.id);
+        }
+        
         await this.updateSessionData(sessionId, { 
           ...sessionData,
+          authenticated: true,
           paymentConfirmed: true,
+          paymentMethod: 'free_offer',
           step: 'symptoms'
         });
         
@@ -324,22 +595,105 @@ Forgot PIN? Contact support.`;
           : 'CON Enter your symptoms:\n(At least 2 sentences)';
       }
 
-      // Payment method: M-Pesa
+      // Payment method: Mobile Payment (Zenopay - supports all networks)
       if (paymentMethod === '1') {
-        // In production, integrate with Zenopay/M-Pesa here
-        // For now, simulate payment request
-        
-        return lang === 'sw'
-          ? `END Ombi la malipo limetumwa!\n\nKiasi: KES ${finalAmount}\nNambari: ${phoneNumber}\n\nUtapokea SMS ya M-Pesa.\nLipa kisha piga tena ${process.env.AT_USSD_CODE || '*384*34153#'}`
-          : `END Payment request sent!\n\nAmount: KES ${finalAmount}\nNumber: ${user.phone}\n\nYou will receive M-Pesa SMS.\nPay then dial ${process.env.AT_USSD_CODE || '*384*34153#'} again`;
+        try {
+          console.log(`[USSD] Initiating payment for user ${user.id}, amount: ${finalAmount}`);
+          
+          // Create a temporary case to link with payment
+          const tempCase = await Case.create(user.id, 'Payment pending', 'paid', 0);
+          await Case.assignToDoctor(tempCase.id, selectedDoctor.id);
+          
+          console.log(`[USSD] Created case #${tempCase.id}, initiating Zenopay payment...`);
+          
+          // Initiate Zenopay payment
+          const paymentResult = await PaymentService.initiatePayment(
+            user.id, 
+            finalAmount, 
+            tempCase.id
+          );
+          
+          console.log(`[USSD] Payment initiated successfully, transaction ID: ${paymentResult.transactionId}`);
+          
+          // Store payment info in session for later verification
+          await this.updateSessionData(sessionId, {
+            ...sessionData,
+            authenticated: true,
+            paymentPending: true,
+            transactionId: paymentResult.transactionId,
+            caseId: tempCase.id,
+            step: 'payment_pending'
+          });
+          
+          return lang === 'sw'
+            ? `END Ombi la Malipo Limetumwa!
+
+Kiasi: KES ${finalAmount}
+Nambari: ${user.phone}
+
+Utapokea SMS ya malipo.
+Lipa kisha piga tena:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Kesi: #${tempCase.id}
+Asante!`
+            : `END Payment Request Sent!
+
+Amount: KES ${finalAmount}
+Number: ${user.phone}
+
+You will receive payment SMS.
+Pay then dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Case: #${tempCase.id}
+Thank you!`;
+        } catch (error) {
+          console.error('[USSD] Payment initiation error:', error.message);
+          console.error('[USSD] Error stack:', error.stack);
+          return lang === 'sw'
+            ? `END Kosa la Malipo
+
+Samahani, malipo hayawezi kuanza sasa.
+Tafadhali jaribu tena baadaye.
+
+Asante!`
+            : `END Payment Error
+
+Sorry, payment cannot be initiated now.
+Please try again later.
+
+Thank you!`;
+        }
       }
 
       // Payment method: Balance
       if (paymentMethod === '2') {
         if (user.balance < finalAmount) {
+          const shortage = finalAmount - user.balance;
           return lang === 'sw'
-            ? `END Salio haitoshi!\n\nUnahitaji: KES ${finalAmount}\nUna: KES ${user.balance}\nUpungufu: KES ${finalAmount - user.balance}\n\nTafadhali tumia M-Pesa.`
-            : `END Insufficient balance!\n\nRequired: KES ${finalAmount}\nYou have: KES ${user.balance}\nShort: KES ${finalAmount - user.balance}\n\nPlease use M-Pesa.`;
+            ? `END Salio Haitoshi!
+
+Salio lako: KES ${user.balance}
+Unahitaji: KES ${finalAmount}
+Upungufu: KES ${shortage}
+
+Tafadhali:
+1. Tumia Malipo ya Simu, au
+2. Ongeza salio kwanza
+
+Asante!`
+            : `END Insufficient Balance!
+
+Your balance: KES ${user.balance}
+Required: KES ${finalAmount}
+Short by: KES ${shortage}
+
+Please:
+1. Use Mobile Payment, or
+2. Top up your balance first
+
+Thank you!`;
         }
 
         // Deduct from balance
@@ -352,14 +706,31 @@ Forgot PIN? Contact support.`;
 
         await this.updateSessionData(sessionId, { 
           ...sessionData,
+          authenticated: true,
           paymentConfirmed: true,
           paymentMethod: 'balance',
           step: 'symptoms'
         });
         
         return lang === 'sw'
-          ? `CON Malipo yamefanikiwa!\nKiasi: KES ${finalAmount}\n\nSasa andika dalili zako:\n(Angalau sentensi 2)`
-          : `CON Payment successful!\nAmount: KES ${finalAmount}\n\nNow enter your symptoms:\n(At least 2 sentences)`;
+          ? `CON Malipo Yamefanikiwa!
+
+Kiasi: KES ${finalAmount}
+Salio mpya: KES ${user.balance - finalAmount}
+
+Sasa andika dalili zako kwa undani:
+(Angalau sentensi 2)
+
+Mfano: Nina maumivu ya tumbo na kuhara kwa siku 3`
+          : `CON Payment Successful!
+
+Amount: KES ${finalAmount}
+New balance: KES ${user.balance - finalAmount}
+
+Now describe your symptoms in detail:
+(At least 2 sentences)
+
+Example: I have stomach pain and diarrhea for 3 days`;
       }
 
       // Back option
@@ -371,14 +742,28 @@ Forgot PIN? Contact support.`;
     }
 
     // Step 4: Get symptoms (after payment confirmed)
-    if (inputs.length === 4) {
-      const symptoms = inputs[3].trim();
+    if (inputs.length === 3) {
+      const symptoms = inputs[2].trim();
       const sessionData = await this.getSessionData(sessionId);
       
       if (!sessionData || !sessionData.paymentConfirmed) {
         return lang === 'sw'
-          ? 'END Malipo hayajathibitishwa.\nTafadhali anza upya.'
-          : 'END Payment not confirmed.\nPlease start again.';
+          ? `END Malipo Hayajathibitishwa
+
+Tafadhali anza upya na lipa kwanza.
+
+Piga tena:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+          : `END Payment Not Confirmed
+
+Please start again and pay first.
+
+Dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
       }
 
       if (symptoms.length < 20) {
@@ -419,8 +804,26 @@ Forgot PIN? Contact support.`;
       await Offer.checkAndCreateOffers(user.id, user.consultation_count + 1);
 
       return lang === 'sw'
-        ? `END Asante! Malipo yamekamilika.\n\nDaktari: ${selectedDoctor.name}\nKiasi: KES ${finalAmount}\nKesi: #${caseData.id}\n\nUtapokea jibu kupitia SMS ndani ya dakika 5-30.`
-        : `END Thank you! Payment completed.\n\nDoctor: ${selectedDoctor.name}\nAmount: KES ${finalAmount}\nCase: #${caseData.id}\n\nYou will receive response via SMS in 5-30 minutes.`;
+        ? `END Malipo Yamekamilika!
+
+Daktari: ${selectedDoctor.name}
+Kiasi: KES ${finalAmount}
+Kesi: #${caseData.id}
+
+Muda: Dakika 5-30
+Jibu: SMS
+
+Asante kutumia SmartHealth!`
+        : `END Payment Completed!
+
+Doctor: ${selectedDoctor.name}
+Amount: KES ${finalAmount}
+Case: #${caseData.id}
+
+Time: 5-30 minutes
+Reply: SMS
+
+Thank you for using SmartHealth!`;
     }
   }
 
@@ -432,37 +835,66 @@ Forgot PIN? Contact support.`;
     
     if (history.length === 0) {
       return lang === 'sw'
-        ? 'END Huna historia ya ushauri bado.'
-        : 'END No consultation history yet.';
+        ? `END Historia ya Ushauri
+
+Huna historia ya ushauri bado.
+
+Anza ushauri wako wa kwanza leo!`
+        : `END Consultation History
+
+No consultation history yet.
+
+Start your first consultation today!`;
     }
 
     let message = lang === 'sw' 
-      ? 'END Historia yako ya hivi karibuni:\n\n'
-      : 'END Your recent history:\n\n';
+      ? 'Historia Yako (5 za hivi karibuni)\n'
+      : 'Your History (Last 5)\n';
     
     history.forEach((item, index) => {
       const date = new Date(item.created_at).toLocaleDateString();
-      message += `${index + 1}. ${date}\n   ${item.doctor_name || 'Pending'}\n   ${item.status}\n\n`;
+      message += `${index + 1}. ${date}\n`;
+      message += `Dr: ${item.doctor_name || 'Pending'} - ${item.status}\n`;
     });
 
-    return message;
+    message += lang === 'sw' 
+      ? 'Asante kutumia SmartHealth!'
+      : 'Thank you for using SmartHealth!';
+
+    return 'END ' + message;
   }
 
   /**
    * Handle language change
    */
   static async handleLanguageChange(user, inputs) {
-    if (inputs.length === 1) {
-      return 'CON Select Language / Chagua Lugha:\n\n1. English\n2. Kiswahili';
+    if (inputs.length === 0) {
+      return `CON Select Language / Chagua Lugha
+1. English
+2. Kiswahili`;
     }
 
-    if (inputs.length === 2) {
-      const newLang = inputs[1] === '1' ? 'en' : 'sw';
+    if (inputs.length === 1) {
+      const newLang = inputs[0] === '1' ? 'en' : 'sw';
       await User.update(user.id, { language: newLang });
       
       return newLang === 'sw'
-        ? 'END Lugha imebadilishwa kuwa Kiswahili.\n\nPiga tena kuendelea.'
-        : 'END Language changed to English.\n\nDial again to continue.';
+        ? `END Lugha Imebadilishwa!
+
+Lugha mpya: Kiswahili
+
+Piga tena kuendelea:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+        : `END Language Changed!
+
+New language: English
+
+Dial again to continue:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
     }
   }
 
@@ -473,8 +905,22 @@ Forgot PIN? Contact support.`;
     await this.clearSession(sessionId);
     
     return lang === 'sw'
-      ? 'END Umetoka kikamilifu.\n\nKwa usalama wako, piga tena kuingia.'
-      : 'END Logged out successfully.\n\nFor your security, dial again to login.';
+      ? `END Umetoka Kikamilifu
+
+Kwa usalama wako, session imefungwa.
+
+Piga tena kuingia:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+      : `END Logged Out Successfully
+
+For your security, session closed.
+
+Dial again to login:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
   }
 
   /**
@@ -482,8 +928,22 @@ Forgot PIN? Contact support.`;
    */
   static invalidOption(lang) {
     return lang === 'sw'
-      ? 'END Chaguo si sahihi.\nTafadhali jaribu tena.'
-      : 'END Invalid option.\nPlease try again.';
+      ? `END Chaguo Si Sahihi
+
+Tafadhali chagua nambari sahihi.
+
+Piga tena:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Asante!`
+      : `END Invalid Option
+
+Please select a valid number.
+
+Dial again:
+${process.env.AT_USSD_CODE || '*384*34153#'}
+
+Thank you!`;
   }
 
   /**

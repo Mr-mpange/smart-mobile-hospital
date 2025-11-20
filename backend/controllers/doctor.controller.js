@@ -188,19 +188,29 @@ class DoctorController {
       }
 
       // Add response and complete case
+      console.log(`[Doctor] Adding response to case #${caseId}`);
       await Case.addResponse(caseId, response);
 
       // Send SMS to patient
-      await SMSService.sendDoctorResponse(caseId);
+      console.log(`[Doctor] Sending SMS to patient for case #${caseId}`);
+      try {
+        await SMSService.sendDoctorResponse(caseId);
+      } catch (smsError) {
+        console.error('[Doctor] SMS sending failed:', smsError.message);
+        // Continue even if SMS fails
+      }
 
       // Increment doctor's consultation count
+      console.log(`[Doctor] Incrementing consultation count for doctor #${doctorId}`);
       await Doctor.incrementConsultations(doctorId);
 
+      console.log(`[Doctor] Response sent successfully for case #${caseId}`);
       res.json({ success: true, message: 'Response sent successfully' });
 
     } catch (error) {
-      console.error('Response error:', error);
-      res.status(500).json({ error: 'Failed to send response' });
+      console.error('[Doctor] Response error:', error.message);
+      console.error('[Doctor] Error stack:', error.stack);
+      res.status(500).json({ error: 'Failed to send response', details: error.message });
     }
   }
 

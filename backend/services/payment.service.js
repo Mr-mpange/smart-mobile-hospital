@@ -31,7 +31,31 @@ class PaymentService {
     const transactionId = result.insertId;
 
     try {
-      // Zenopay API call
+      // Development mode - simulate payment
+      if (process.env.NODE_ENV === 'development' && process.env.ZENOPAY_MERCHANT_ID === 'your_zenopay_merchant_id') {
+        console.log('[Payment] Running in DEVELOPMENT mode - simulating payment');
+        
+        // Simulate successful payment initiation
+        const mockPaymentId = `MOCK_${transactionRef}`;
+        
+        // Update transaction with mock reference
+        await pool.query(
+          'UPDATE transactions SET transaction_ref = ?, status = ? WHERE id = ?',
+          [mockPaymentId, 'completed', transactionId]
+        );
+        
+        // Auto-complete payment in development
+        await User.updateBalance(userId, amount);
+        
+        return {
+          transactionId,
+          paymentId: mockPaymentId,
+          status: 'completed',
+          message: 'Payment completed (DEV MODE)'
+        };
+      }
+      
+      // Production mode - real Zenopay API call
       const paymentData = {
         merchant_id: process.env.ZENOPAY_MERCHANT_ID,
         amount: amount,
