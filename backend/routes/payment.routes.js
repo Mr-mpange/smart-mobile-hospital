@@ -13,6 +13,9 @@ router.post('/initiate', PaymentController.initiatePayment);
 // Zenopay callback
 router.post('/callback', PaymentController.handleCallback);
 
+// Test endpoint to manually complete payment (DEV MODE)
+router.post('/test-complete/:transactionId', PaymentController.testCompletePayment);
+
 // Check payment status
 router.get('/:transactionId/status', PaymentController.checkStatus);
 

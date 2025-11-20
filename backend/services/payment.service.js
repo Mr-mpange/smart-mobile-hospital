@@ -31,27 +31,27 @@ class PaymentService {
     const transactionId = result.insertId;
 
     try {
-      // Development mode - simulate payment
-      if (process.env.NODE_ENV === 'development' && process.env.ZENOPAY_MERCHANT_ID === 'your_zenopay_merchant_id') {
-        console.log('[Payment] Running in DEVELOPMENT mode - simulating payment');
+      // Development mode - simulate payment push (but keep pending)
+      if (process.env.NODE_ENV === 'development' && process.env.ZENOPAY_MERCHANT_ID === 'your_real_merchant_id_here') {
+        console.log('[Payment] Running in TEST mode - simulating payment push');
+        console.log(`[Payment] User would receive push notification on: ${user.phone}`);
+        console.log(`[Payment] Amount: KES ${amount}`);
+        console.log(`[Payment] To complete payment, call: POST /api/payments/test-complete/${transactionId}`);
         
-        // Simulate successful payment initiation
-        const mockPaymentId = `MOCK_${transactionRef}`;
+        // Simulate payment push sent (but keep status as pending)
+        const mockPaymentId = `TEST_${transactionRef}`;
         
-        // Update transaction with mock reference
+        // Update transaction with mock reference (keep as pending)
         await pool.query(
-          'UPDATE transactions SET transaction_ref = ?, status = ? WHERE id = ?',
-          [mockPaymentId, 'completed', transactionId]
+          'UPDATE transactions SET transaction_ref = ? WHERE id = ?',
+          [mockPaymentId, transactionId]
         );
-        
-        // Auto-complete payment in development
-        await User.updateBalance(userId, amount);
         
         return {
           transactionId,
           paymentId: mockPaymentId,
-          status: 'completed',
-          message: 'Payment completed (DEV MODE)'
+          status: 'pending',
+          message: 'Payment push sent (TEST MODE)'
         };
       }
       

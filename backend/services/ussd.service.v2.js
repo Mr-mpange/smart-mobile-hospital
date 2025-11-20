@@ -853,7 +853,10 @@ Thank you!`;
       // Check for new offers
       await Offer.checkAndCreateOffers(user.id, user.consultation_count + 1);
 
-      // Send confirmation SMS
+      // Generate unique chat code for this case
+      const chatCode = `CHAT${caseData.id}`;
+      
+      // Send confirmation SMS with chat code
       try {
         const confirmMessage = lang === 'sw'
           ? `Malipo yamekamilika! Ushauri wako umepokelewa.
@@ -864,6 +867,12 @@ Kesi: #${caseData.id}
 
 Daktari atakujibu kupitia SMS ndani ya dakika 5-30.
 
+KUONGEA NA DAKTARI:
+Tuma SMS: ${chatCode} [ujumbe wako]
+Kwa: ${process.env.AT_SMS_SHORTCODE || '34059'}
+
+Mfano: ${chatCode} Je, naweza kula chakula gani?
+
 SmartHealth`
           : `Payment completed! Your consultation has been received.
 
@@ -873,10 +882,16 @@ Case: #${caseData.id}
 
 Doctor will respond via SMS within 5-30 minutes.
 
+TO CHAT WITH DOCTOR:
+Send SMS: ${chatCode} [your message]
+To: ${process.env.AT_SMS_SHORTCODE || '34059'}
+
+Example: ${chatCode} What food can I eat?
+
 SmartHealth`;
         
         await SMSService.sendSMS(user.phone, confirmMessage);
-        console.log(`[USSD] Confirmation SMS sent to ${user.phone} for case #${caseData.id}`);
+        console.log(`[USSD] Confirmation SMS with chat code ${chatCode} sent to ${user.phone}`);
       } catch (smsError) {
         console.error('[USSD] Failed to send confirmation SMS:', smsError.message);
       }

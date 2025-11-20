@@ -110,7 +110,8 @@ class SMSService {
    */
   static async handleIncomingSMS(from, text, date) {
     const phone = from;
-    const message = text.trim().toLowerCase();
+    const message = text.trim();
+    const messageLower = message.toLowerCase();
 
     // Get or create user
     let user = await User.findByPhone(phone);
@@ -122,20 +123,82 @@ class SMSService {
       return;
     }
 
+    // Check if message is a chat code (CHAT123 message)
+    const chatMatch = message.match(/^CHAT(\d+)\s+(.+)$/i);
+    if (chatMatch) {
+      const caseId = chatMatch[1];
+      const chatMessage = chatMatch[2];
+      await this.handleChatMessage(user, caseId, chatMessage);
+      return;
+    }
+
     // Parse command
-    if (message.startsWith('consult') || message.startsWith('ushauri')) {
+    if (messageLower.startsWith('consult') || messageLower.startsWith('ushauri')) {
       await this.handleConsultationRequest(user, text);
-    } else if (message.startsWith('doctors') || message.startsWith('madaktari')) {
+    } else if (messageLower.startsWith('doctors') || messageLower.startsWith('madaktari')) {
       await this.sendDoctorList(user);
-    } else if (message.startsWith('select') || message.startsWith('chagua')) {
+    } else if (messageLower.startsWith('select') || messageLower.startsWith('chagua')) {
       await this.handleDoctorSelection(user, text);
-    } else if (message.startsWith('history') || message.startsWith('historia')) {
+    } else if (messageLower.startsWith('history') || messageLower.startsWith('historia')) {
       await this.sendHistory(user);
-    } else if (message.startsWith('help') || message.startsWith('msaada')) {
+    } else if (messageLower.startsWith('help') || messageLower.startsWith('msaada')) {
       await this.sendHelpMessage(user);
     } else {
       await this.sendHelpMessage(user);
     }
+  }
+
+  /**
+   * Handle chat message with doctor
+   */
+  static async handleChatMessage(user, caseId, message) {
+    console.log(`[SMS] Chat message from ${user.phone} for case #${caseId}: ${message}`);
+    
+    // Get case and verify it belongs to this user
+    const caseData = await Case.findById(caseId);
+    
+    if (!caseData) {
+      const msg = user.language === 'sw'
+        ? `Kesi #${caseId} haipatikani. Tafadhali angalia nambari ya kesi.`
+        : `Case #${caseId} not found. Please check the case number.`;
+      await this.sendSMS(user.phone, msg);
+      return;
+    }
+    
+    if (caseData.user_id !== user.id) {
+      const msg = user.language === 'sw'
+        ? `Huna ruhusa ya kuongea kwenye kesi hii.`
+        : `You don't have permission to chat on this case.`;
+      await this.sendSMS(user.phone, msg);
+      return;
+    }
+    
+    // Check if case is paid (only paid consultations can chat)
+    if (caseData.consultation_type === 'trial') {
+      const msg = user.language === 'sw'
+        ? `Mazungumzo hayapatikani kwa ushauri wa bure. Tafadhali lipia ushauri ili kuongea na daktari.`
+        : `Chat is not available for free consultations. Please pay for a consultation to chat with a doctor.`;
+      await this.sendSMS(user.phone, msg);
+      return;
+    }
+    
+    // Save chat message to database
+    await pool.query(
+      `INSERT INTO case_messages (case_id, sender_type, sender_id, message, created_at) 
+       VALUES (?, 'patient', ?, ?, NOW())`,
+      [caseId, user.id, message]
+    );
+    
+    // Send confirmation to patient
+    const confirmMsg = user.language === 'sw'
+      ? `Ujumbe wako umepokelewa. Daktari ${caseData.doctor_name} atajibu hivi karibuni.`
+      : `Your message has been received. Dr. ${caseData.doctor_name} will respond shortly.`;
+    await this.sendSMS(user.phone, confirmMsg);
+    
+    // Notify doctor (you can implement email/SMS notification to doctor here)
+    console.log(`[SMS] Chat message saved for case #${caseId}, doctor will be notified`);
+    
+    // TODO: Send notification to doctor via email or SMS
   }
 
   /**
@@ -354,6 +417,21 @@ Au piga ${process.env.AT_USSD_CODE}`
       return;
     }
     
+    // Check if SMS already sent for this case (prevent duplicates)
+    const [existing] = await pool.query(
+      `SELECT id FROM sms_queue 
+       WHERE phone = ? 
+       AND message LIKE ? 
+       AND status = 'sent' 
+       AND created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)`,
+      [user.phone, `%Case #${caseId}%`]
+    );
+    
+    if (existing.length > 0) {
+      console.log(`[SMS] SMS already sent for case #${caseId} in the last 5 minutes - skipping`);
+      return;
+    }
+
     console.log(`[SMS] User found - Phone: ${user.phone}, Language: ${user.language}`);
     
     const message = user.language === 'sw'

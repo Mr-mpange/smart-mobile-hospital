@@ -50,6 +50,38 @@ class PaymentController {
   }
 
   /**
+   * Test endpoint to manually complete payment (DEV MODE ONLY)
+   * POST /api/payments/test-complete/:transactionId
+   */
+  static async testCompletePayment(req, res) {
+    try {
+      if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({ error: 'Only available in development mode' });
+      }
+
+      const { transactionId } = req.params;
+
+      // Simulate successful payment callback
+      const result = await PaymentService.handleCallback({
+        transaction_id: transactionId,
+        status: 'success',
+        payment_id: `TEST_${transactionId}`,
+        signature: 'test_signature'
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Payment completed manually (TEST MODE)',
+        result 
+      });
+
+    } catch (error) {
+      console.error('Test payment completion error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
    * Check payment status
    * GET /api/payments/:transactionId/status
    */
