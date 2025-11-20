@@ -34,6 +34,37 @@ class User {
   }
 
   /**
+   * Create new user with password (for secure access)
+   */
+  static async createWithPassword(phone, name, passwordHash, language = 'en') {
+    const trialStart = new Date();
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + parseInt(process.env.TRIAL_DURATION_DAYS || 1));
+
+    const [result] = await pool.query(
+      `INSERT INTO users (phone, name, password_hash, trial_start, trial_end, language) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [phone, name, passwordHash, trialStart, trialEnd, language]
+    );
+
+    return this.findById(result.insertId);
+  }
+
+  /**
+   * Verify user password
+   */
+  static async verifyPassword(userId, password) {
+    const bcrypt = require('bcryptjs');
+    const user = await this.findById(userId);
+    
+    if (!user || !user.password_hash) {
+      return false;
+    }
+    
+    return bcrypt.compare(password, user.password_hash);
+  }
+
+  /**
    * Find user by ID
    */
   static async findById(id) {
