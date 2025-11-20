@@ -229,6 +229,29 @@ class VoiceController {
       res.status(500).send('Error');
     }
   }
+
+  /**
+   * Handle when doctor answers the call
+   * POST /api/voice/doctor-answered
+   */
+  static async handleDoctorAnswered(req, res) {
+    try {
+      const { caseId, patientPhone } = req.query;
+      const service = VoiceService.getService();
+
+      console.log(`[Voice] Doctor answered for case #${caseId}, bridging to patient ${patientPhone}`);
+
+      const response = await service.handleDoctorAnswered(caseId, patientPhone);
+
+      res.type('text/xml');
+      res.send(response);
+
+    } catch (error) {
+      console.error('Doctor answered error:', error);
+      res.type('text/xml');
+      res.send('<Response><Say>Unable to connect. Please try again.</Say></Response>');
+    }
+  }
 }
 
 module.exports = VoiceController;

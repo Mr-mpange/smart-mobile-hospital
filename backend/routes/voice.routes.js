@@ -41,4 +41,7 @@ router.post('/doctor-response', VoiceController.handleDoctorResponse);
 // Doctor call status
 router.post('/doctor-call-status', VoiceController.handleDoctorCallStatus);
 
+// Doctor answered callback
+router.post('/doctor-answered', VoiceController.handleDoctorAnswered);
+
 module.exports = router;

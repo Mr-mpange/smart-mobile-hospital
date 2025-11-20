@@ -203,25 +203,94 @@ class AfricasTalkingVoiceService {
     const caseData = await Case.create(user.id, symptoms, consultationType, 0);
 
     // Determine doctor
-    let doctorId;
+    let doctor;
     if (sessionData.selectedDoctor) {
-      doctorId = sessionData.selectedDoctor.id;
+      doctor = sessionData.selectedDoctor;
     } else {
       // Auto-assign
       const assignedCase = await Case.autoAssign(caseData.id);
-      doctorId = assignedCase.doctor_id;
+      doctor = await Doctor.findById(assignedCase.doctor_id);
     }
 
+    // Assign case to doctor
+    await Case.assignToDoctor(caseData.id, doctor.id);
+
     // Create call queue entry
-    await DoctorCallQueue.create(doctorId, user.id, caseData.id, sessionId);
+    await DoctorCallQueue.create(doctor.id, user.id, caseData.id, sessionId);
 
-    // Notify doctor
-    await this.notifyDoctor(doctorId, user, caseData);
+    console.log(`[Voice] Routing call to doctor ${doctor.name}`);
+    console.log(`[Voice] Using Africa's Talking registered numbers for routing`);
 
-    // Redirect to wait endpoint
-    response += '<Redirect>' + process.env.API_BASE_URL + '/api/voice/wait-for-doctor</Redirect>';
+    // Get doctor's registered AT phone number from database
+    // If doctor.phone is registered in AT account, it will automatically route
+    const doctorPhone = doctor.phone;
+
+    // Automatically dial the doctor's phone number
+    // Africa's Talking will route to the registered number
+    response += '<Dial phoneNumbers="' + doctorPhone + '" ' +
+                'record="true" sequential="true" maxDuration="1800" ' +
+                'callbackUrl="' + process.env.API_BASE_URL + '/api/voice/call-completed">';
+    response += '<Say>Connecting you to Doctor ' + doctor.name + '. Please wait.</Say>';
+    response += '</Dial>';
+    
+    // If doctor doesn't answer
+    response += '<Say>Sorry, the doctor is not available at the moment. ' +
+                'You will receive a callback shortly via SMS. Goodbye.</Say>';
+    
     response += '</Response>';
 
+    return response;
+  }
+
+  /**
+   * Make outbound call to doctor (alternative method using API)
+   */
+  static async callDoctor(doctorPhone, patientPhone, caseId) {
+    try {
+      console.log(`[Voice] Making outbound call to doctor: ${doctorPhone}`);
+      
+      const response = await axios.post(
+        'https://voice.africastalking.com/call',
+        {
+          username: process.env.AT_USERNAME,
+          to: doctorPhone,
+          from: process.env.AT_VOICE_PHONE_NUMBER,
+          callbackUrl: `${process.env.API_BASE_URL}/api/voice/doctor-answered?caseId=${caseId}&patientPhone=${patientPhone}`
+        },
+        {
+          headers: {
+            'apiKey': process.env.AT_API_KEY,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      console.log('[Voice] Outbound call initiated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[Voice] Failed to call doctor:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle when doctor answers the call
+   */
+  static async handleDoctorAnswered(caseId, patientPhone) {
+    let response = '<?xml version="1.0" encoding="UTF-8"?>';
+    response += '<Response>';
+    response += '<Say>Hello Doctor. You have a patient consultation. Connecting you now.</Say>';
+    
+    // Bridge to patient
+    response += '<Dial phoneNumbers="' + patientPhone + '" ' +
+                'record="true" sequential="true" maxDuration="1800" ' +
+                'callbackUrl="' + process.env.API_BASE_URL + '/api/voice/call-completed">';
+    response += '</Dial>';
+    
+    response += '<Say>The patient did not answer. Goodbye.</Say>';
+    response += '</Response>';
+    
     return response;
   }
 
