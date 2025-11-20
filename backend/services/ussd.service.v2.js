@@ -80,12 +80,15 @@ class USSDServiceV2 {
         // Pass inputs without the menu option number
         return this.handlePaidFlow(user, menuInputs.slice(1), language, sessionId);
       } else if (menuInputs[0] === '3') {
-        // Pass inputs without the menu option number
-        return this.handleHistory(user, menuInputs.slice(1), language);
+        // Voice call option
+        return this.handleVoiceCall(user, menuInputs.slice(1), language);
       } else if (menuInputs[0] === '4') {
         // Pass inputs without the menu option number
-        return this.handleLanguageChange(user, menuInputs.slice(1));
+        return this.handleHistory(user, menuInputs.slice(1), language);
       } else if (menuInputs[0] === '5') {
+        // Pass inputs without the menu option number
+        return this.handleLanguageChange(user, menuInputs.slice(1));
+      } else if (menuInputs[0] === '6') {
         return this.handleLogout(sessionId, language);
       } else {
         console.log(`[USSD] Invalid option: ${menuInputs[0]}`);
@@ -342,10 +345,12 @@ Thank you!`;
       } else if (menuOption === '2') {
         return this.handlePaidFlow(user, ['2', ...inputs.slice(2)], language, sessionId);
       } else if (menuOption === '3') {
-        return this.handleHistory(user, ['3', ...inputs.slice(2)], language);
+        return this.handleVoiceCall(user, ['3', ...inputs.slice(2)], language);
       } else if (menuOption === '4') {
-        return this.handleLanguageChange(user, ['4', ...inputs.slice(2)]);
+        return this.handleHistory(user, ['4', ...inputs.slice(2)], language);
       } else if (menuOption === '5') {
+        return this.handleLanguageChange(user, ['5', ...inputs.slice(2)]);
+      } else if (menuOption === '6') {
         return this.handleLogout(sessionId, language);
       } else {
         return this.invalidOption(language);
@@ -367,17 +372,19 @@ Welcome ${user.name || 'User'}
 
 1. Free Trial${trialRemaining > 0 ? ` (${trialRemaining} left)` : ' (Expired)'}
 2. Paid Consultation
-3. My History
-4. Change Language
-5. Logout`,
+3. Voice Call Doctor
+4. My History
+5. Change Language
+6. Logout`,
       sw: `CON SmartHealth
 Karibu ${user.name || 'Mtumiaji'}
 
 1. Bure${trialRemaining > 0 ? ` (${trialRemaining} zimebaki)` : ' (Imeisha)'}
 2. Malipo
-3. Historia
-4. Lugha
-5. Toka`
+3. Piga Simu Daktari
+4. Historia
+5. Lugha
+6. Toka`
     };
     return menus[lang] || menus.en;
   }
@@ -918,6 +925,65 @@ Reply: SMS
 
 Thank you for using SmartHealth!`;
     }
+  }
+
+  /**
+   * Handle voice call request
+   */
+  static async handleVoiceCall(user, inputs, lang) {
+    // Check if voice service is configured
+    const voiceNumber = process.env.AT_VOICE_PHONE_NUMBER || process.env.TWILIO_PHONE_NUMBER;
+    
+    if (!voiceNumber) {
+      return lang === 'sw'
+        ? `END Huduma ya Simu Haipo
+
+Samahani, huduma ya kupiga simu daktari haipo sasa.
+
+Tafadhali tumia:
+1. Ushauri wa Bure
+2. Ushauri wa Malipo
+
+Asante!`
+        : `END Voice Service Unavailable
+
+Sorry, voice call service is not available now.
+
+Please use:
+1. Free Trial
+2. Paid Consultation
+
+Thank you!`;
+    }
+    
+    // Show voice call information
+    return lang === 'sw'
+      ? `END Piga Simu Daktari
+
+Piga nambari hii kuongea na daktari:
+${voiceNumber}
+
+Bei:
+- Dakika 1-5: KES 100
+- Dakika 6-10: KES 200
+- Dakika 11+: KES 50/dakika
+
+Malipo yatatolewa baada ya simu.
+
+SmartHealth`
+      : `END Call a Doctor
+
+Call this number to speak with a doctor:
+${voiceNumber}
+
+Rates:
+- Minutes 1-5: KES 100
+- Minutes 6-10: KES 200
+- Minutes 11+: KES 50/min
+
+Payment will be charged after call.
+
+SmartHealth`;
   }
 
   /**
