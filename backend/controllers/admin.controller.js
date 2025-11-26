@@ -82,15 +82,39 @@ class AdminController {
     try {
       // Get counts
       const [doctorCount] = await pool.query('SELECT COUNT(*) as count FROM doctors WHERE is_active = TRUE');
+      const [inactiveDoctors] = await pool.query('SELECT COUNT(*) as count FROM doctors WHERE is_active = FALSE');
       const [userCount] = await pool.query('SELECT COUNT(*) as count FROM users');
       const [caseCount] = await pool.query('SELECT COUNT(*) as count FROM cases');
       const [pendingCases] = await pool.query('SELECT COUNT(*) as count FROM cases WHERE status = "pending"');
+      const [assignedCases] = await pool.query('SELECT COUNT(*) as count FROM cases WHERE status = "assigned"');
       const [completedCases] = await pool.query('SELECT COUNT(*) as count FROM cases WHERE status = "completed"');
       
       // Get revenue
       const [revenue] = await pool.query(
         'SELECT SUM(amount) as total FROM transactions WHERE status = "completed"'
       );
+
+      // Get monthly stats for charts
+      const [monthlyVerifications] = await pool.query(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m') as month,
+          COUNT(*) as count
+        FROM doctors
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month
+      `);
+
+      // Get weekly activity
+      const [weeklyActivity] = await pool.query(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m-%d') as day,
+          COUNT(*) as count
+        FROM cases
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        ORDER BY day
+      `);
 
       // Get recent cases
       const [recentCases] = await pool.query(`
@@ -102,16 +126,46 @@ class AdminController {
         LIMIT 10
       `);
 
+      // Get recent notifications (pending verifications, new cases, etc.)
+      const notifications = [];
+      
+      if (inactiveDoctors[0].count > 0) {
+        notifications.push({
+          id: 'pending-doctors',
+          type: 'warning',
+          message: `${inactiveDoctors[0].count} doctor${inactiveDoctors[0].count > 1 ? 's' : ''} pending verification`,
+          time: 'Now',
+          action: 'verifications'
+        });
+      }
+
+      if (pendingCases[0].count > 0) {
+        notifications.push({
+          id: 'pending-cases',
+          type: 'info',
+          message: `${pendingCases[0].count} case${pendingCases[0].count > 1 ? 's' : ''} awaiting assignment`,
+          time: 'Now',
+          action: 'cases'
+        });
+      }
+
       res.json({
         success: true,
         stats: {
           doctors: doctorCount[0].count,
+          inactiveDoctors: inactiveDoctors[0].count,
           users: userCount[0].count,
           totalCases: caseCount[0].count,
           pendingCases: pendingCases[0].count,
+          assignedCases: assignedCases[0].count,
           completedCases: completedCases[0].count,
           revenue: revenue[0].total || 0
         },
+        charts: {
+          monthlyVerifications,
+          weeklyActivity
+        },
+        notifications,
         recentCases
       });
     } catch (error) {

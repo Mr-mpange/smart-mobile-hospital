@@ -32,19 +32,39 @@ class PaymentController {
   }
 
   /**
-   * Handle Zenopay callback
+   * Handle Zenopay callback (Webhook)
    * POST /api/payments/callback
+   * 
+   * This webhook is called by Zenopay when payment status changes
+   * It automatically activates the service after successful payment
    */
   static async handleCallback(req, res) {
     try {
+      console.log('[Payment Webhook] Received callback from Zenopay');
+      console.log('[Payment Webhook] Data:', JSON.stringify(req.body, null, 2));
+      
       const callbackData = req.body;
 
+      // Validate required fields
+      if (!callbackData.transaction_id || !callbackData.status) {
+        console.error('[Payment Webhook] Missing required fields');
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // Process the callback
       const result = await PaymentService.handleCallback(callbackData);
 
-      res.json({ success: result.success });
+      console.log('[Payment Webhook] Processing result:', result);
+
+      // Return success response to Zenopay
+      res.json({ 
+        success: result.success,
+        message: result.success ? 'Payment processed successfully' : 'Payment failed'
+      });
 
     } catch (error) {
-      console.error('Payment callback error:', error);
+      console.error('[Payment Webhook] Error:', error.message);
+      console.error('[Payment Webhook] Stack:', error.stack);
       res.status(500).json({ error: 'Callback processing failed' });
     }
   }

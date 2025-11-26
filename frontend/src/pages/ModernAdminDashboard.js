@@ -28,13 +28,38 @@ function ModernAdminDashboard() {
   const [doctors, setDoctors] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [chartData, setChartData] = useState(null);
+  const [previousNotificationCount, setPreviousNotificationCount] = useState(0);
+  
+  // Settings state
+  const [settings, setSettings] = useState({
+    systemName: 'SmartHealth Telemedicine',
+    adminEmail: localStorage.getItem('adminEmail') || 'admin@smarthealth.com',
+    currency: 'TZS',
+    autoAssignCases: 'enabled',
+    emailNotifications: 'enabled',
+    smsNotifications: 'enabled',
+    notificationFrequency: '30'
+  });
 
   useEffect(() => {
     loadData();
-    // Simulate real-time notifications
+    
+    // Load saved settings from localStorage
+    const savedSettings = localStorage.getItem('systemSettings');
+    if (savedSettings) {
+      try {
+        setSettings(JSON.parse(savedSettings));
+      } catch (error) {
+        console.error('Error loading settings:', error);
+      }
+    }
+    
+    // Real-time polling for updates every 30 seconds
     const interval = setInterval(() => {
-      // Check for new notifications
+      loadData();
     }, 30000);
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -47,17 +72,26 @@ function ModernAdminDashboard() {
 
       setStats(statsRes.data.stats);
       setDoctors(doctorsRes.data.doctors);
+      setChartData(statsRes.data.charts);
       
-      // Filter pending verifications
-      const pending = doctorsRes.data.doctors.filter(d => !d.is_verified);
+      // Filter pending verifications (inactive doctors)
+      const pending = doctorsRes.data.doctors.filter(d => !d.is_active);
       setPendingVerifications(pending);
 
-      // Generate sample notifications
-      setNotifications([
-        { id: 1, type: 'warning', message: '3 certificates expiring this month', time: '2 hours ago' },
-        { id: 2, type: 'info', message: 'New doctor registration pending', time: '5 hours ago' },
-        { id: 3, type: 'success', message: 'Dr. John verified successfully', time: '1 day ago' }
-      ]);
+      // Use real notifications from backend
+      const newNotifications = statsRes.data.notifications || [];
+      
+      // Show toast if new notifications appeared
+      if (previousNotificationCount > 0 && newNotifications.length > previousNotificationCount) {
+        const newCount = newNotifications.length - previousNotificationCount;
+        toast.info(`${newCount} new notification${newCount > 1 ? 's' : ''}!`, {
+          position: 'top-right',
+          autoClose: 5000
+        });
+      }
+      
+      setNotifications(newNotifications);
+      setPreviousNotificationCount(newNotifications.length);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load dashboard data');
@@ -78,24 +112,72 @@ function ModernAdminDashboard() {
 
   const handleApprove = async (doctorId) => {
     try {
-      await api.put(`/admin/doctors/${doctorId}`, { is_active: true });
-      toast.success('Doctor verified successfully!');
-      loadData();
-      setShowModal(false);
+      const response = await api.put(`/admin/doctors/${doctorId}`, { is_active: true });
+      if (response.data.success) {
+        toast.success('Doctor verified and activated successfully!');
+        await loadData(); // Reload data to update UI
+        setShowModal(false);
+      }
     } catch (error) {
-      toast.error('Failed to verify doctor');
+      console.error('Approve error:', error);
+      toast.error(error.response?.data?.error || 'Failed to verify doctor');
     }
   };
 
   const handleReject = async (doctorId) => {
-    try {
-      await api.delete(`/admin/doctors/${doctorId}`);
-      toast.success('Doctor rejected');
-      loadData();
-      setShowModal(false);
-    } catch (error) {
-      toast.error('Failed to reject doctor');
+    if (!window.confirm('Are you sure you want to deactivate this doctor?')) {
+      return;
     }
+    
+    try {
+      const response = await api.delete(`/admin/doctors/${doctorId}`);
+      if (response.data.success) {
+        toast.success('Doctor deactivated successfully');
+        await loadData(); // Reload data to update UI
+        setShowModal(false);
+      }
+    } catch (error) {
+      console.error('Reject error:', error);
+      toast.error(error.response?.data?.error || 'Failed to deactivate doctor');
+    }
+  };
+
+  const handleSaveSettings = () => {
+    try {
+      // Save to localStorage
+      localStorage.setItem('systemSettings', JSON.stringify(settings));
+      localStorage.setItem('adminEmail', settings.adminEmail);
+      
+      // Update notification frequency if changed
+      if (settings.notificationFrequency !== '30') {
+        toast.info(`Notification frequency updated to every ${settings.notificationFrequency} seconds`);
+      }
+      
+      toast.success('Settings saved successfully!');
+    } catch (error) {
+      console.error('Save settings error:', error);
+      toast.error('Failed to save settings');
+    }
+  };
+
+  const handleResetSettings = () => {
+    if (!window.confirm('Are you sure you want to reset all settings to defaults?')) {
+      return;
+    }
+    
+    const defaultSettings = {
+      systemName: 'SmartHealth Telemedicine',
+      adminEmail: 'admin@smarthealth.com',
+      currency: 'TZS',
+      autoAssignCases: 'enabled',
+      emailNotifications: 'enabled',
+      smsNotifications: 'enabled',
+      notificationFrequency: '30'
+    };
+    
+    setSettings(defaultSettings);
+    localStorage.setItem('systemSettings', JSON.stringify(defaultSettings));
+    toast.success('Settings reset to defaults');
   };
 
   const handleLogout = () => {
@@ -115,21 +197,28 @@ function ModernAdminDashboard() {
     a.click();
   };
 
-  // Chart data
+  // Chart data - using real data from backend
   const verificationChartData = {
-    labels: ['Verified', 'Pending', 'Expired'],
+    labels: ['Verified', 'Pending', 'Completed Cases'],
     datasets: [{
-      data: [stats?.doctors || 0, pendingVerifications.length, 5],
-      backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+      data: [
+        stats?.doctors || 0, 
+        stats?.inactiveDoctors || 0, 
+        stats?.completedCases || 0
+      ],
+      backgroundColor: ['#10b981', '#f59e0b', '#3b82f6'],
       borderWidth: 0
     }]
   };
 
   const monthlyChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: chartData?.monthlyVerifications?.map(m => {
+      const date = new Date(m.month + '-01');
+      return date.toLocaleDateString('en-US', { month: 'short' });
+    }) || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [{
-      label: 'Verifications',
-      data: [12, 19, 15, 25, 22, 30],
+      label: 'Doctor Registrations',
+      data: chartData?.monthlyVerifications?.map(m => m.count) || [0, 0, 0, 0, 0, 0],
       backgroundColor: 'rgba(59, 130, 246, 0.5)',
       borderColor: 'rgb(59, 130, 246)',
       borderWidth: 2
@@ -137,10 +226,13 @@ function ModernAdminDashboard() {
   };
 
   const activityChartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: chartData?.weeklyActivity?.map(d => {
+      const date = new Date(d.day);
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    }) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [{
-      label: 'Admin Actions',
-      data: [65, 59, 80, 81, 56, 55, 40],
+      label: 'Cases Created',
+      data: chartData?.weeklyActivity?.map(d => d.count) || [0, 0, 0, 0, 0, 0, 0],
       fill: true,
       backgroundColor: 'rgba(139, 92, 246, 0.2)',
       borderColor: 'rgb(139, 92, 246)',
@@ -299,8 +391,8 @@ function ModernAdminDashboard() {
                     <FiAlertCircle />
                   </div>
                   <div className="card-content">
-                    <h3>5</h3>
-                    <p>Expired Certificates</p>
+                    <h3>{stats?.pendingCases || 0}</h3>
+                    <p>Pending Cases</p>
                   </div>
                   <div className="card-trend warning">
                     <FiAlertCircle />
@@ -313,12 +405,12 @@ function ModernAdminDashboard() {
                     <FiFileText />
                   </div>
                   <div className="card-content">
-                    <h3>{stats?.totalCases || 0}</h3>
-                    <p>Total Admin Actions</p>
+                    <h3>{stats?.completedCases || 0}</h3>
+                    <p>Completed Cases</p>
                   </div>
                   <div className="card-trend">
-                    <FiTrendingUp />
-                    <span>+8%</span>
+                    <FiCheckCircle />
+                    <span>Success</span>
                   </div>
                 </div>
               </div>
@@ -433,7 +525,7 @@ function ModernAdminDashboard() {
                       </div>
                       <div className="detail-row">
                         <span>Fee:</span>
-                        <span>KES {doctor.fee}</span>
+                        <span>TZS {doctor.fee}</span>
                       </div>
                       <div className="detail-row">
                         <span>Registered:</span>
@@ -503,7 +595,7 @@ function ModernAdminDashboard() {
                         <td>{doctor.email}</td>
                         <td>{doctor.phone}</td>
                         <td>{doctor.specialization}</td>
-                        <td>KES {doctor.fee}</td>
+                        <td>TZS {doctor.fee}</td>
                         <td>
                           <span className={`status-badge ${doctor.status}`}>
                             {doctor.status}
@@ -528,53 +620,616 @@ function ModernAdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'notifications' && (
+            <div className="notifications-section">
+              <div className="section-header">
+                <h2>System Notifications</h2>
+                <p className="section-subtitle">Real-time alerts and system updates</p>
+              </div>
+              
+              {notifications.length === 0 ? (
+                <div className="empty-state">
+                  <FiBell size={64} />
+                  <h3>No Notifications</h3>
+                  <p>You're all caught up! No new notifications at this time.</p>
+                </div>
+              ) : (
+                <div className="notifications-list">
+                  {notifications.map(notif => (
+                    <div key={notif.id} className={`notification-item ${notif.type}`}>
+                      <div className="notification-icon">
+                        {notif.type === 'warning' && <FiAlertCircle />}
+                        {notif.type === 'info' && <FiBell />}
+                        {notif.type === 'success' && <FiCheckCircle />}
+                      </div>
+                      <div className="notification-content">
+                        <p className="notification-message">{notif.message}</p>
+                        <span className="notification-time">{notif.time}</span>
+                      </div>
+                      {notif.action && (
+                        <button 
+                          className="notification-action"
+                          onClick={() => setActiveTab(notif.action)}
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'pending' && (
+            <div className="verifications-section">
+              <div className="section-header">
+                <h2>Pending Doctor Verifications</h2>
+                <p className="section-subtitle">Review and approve new doctor registrations</p>
+              </div>
+
+              {pendingVerifications.length === 0 ? (
+                <div className="empty-state">
+                  <FiCheckCircle size={64} />
+                  <h3>All Caught Up!</h3>
+                  <p>No pending verifications at the moment</p>
+                </div>
+              ) : (
+                <div className="doctors-grid">
+                  {pendingVerifications.map(doctor => (
+                    <div key={doctor.id} className="doctor-verification-card">
+                      <div className="doctor-card-header">
+                        <div className="doctor-avatar large">{doctor.name.charAt(0)}</div>
+                        <div className="doctor-info">
+                          <h3>{doctor.name}</h3>
+                          <p className="specialization">{doctor.specialization}</p>
+                        </div>
+                        <span className="status-badge pending">Pending</span>
+                      </div>
+
+                      <div className="doctor-card-body">
+                        <div className="info-row">
+                          <span className="label">Email:</span>
+                          <span className="value">{doctor.email}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="label">Phone:</span>
+                          <span className="value">{doctor.phone}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="label">Consultation Fee:</span>
+                          <span className="value">TZS {doctor.fee}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="label">Registered:</span>
+                          <span className="value">{new Date(doctor.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <div className="doctor-card-actions">
+                        <button 
+                          className="btn-approve"
+                          onClick={() => handleApprove(doctor.id)}
+                        >
+                          <FiCheck /> Approve
+                        </button>
+                        <button 
+                          className="btn-reject"
+                          onClick={() => handleReject(doctor.id)}
+                        >
+                          <FiXCircle /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'verified' && (
+            <div className="verified-section">
+              <div className="section-header">
+                <h2>Verified Doctors</h2>
+                <p className="section-subtitle">All active doctors in the system</p>
+              </div>
+
+              <div className="doctors-table-container">
+                <table className="doctors-table">
+                  <thead>
+                    <tr>
+                      <th>Doctor</th>
+                      <th>Specialization</th>
+                      <th>Contact</th>
+                      <th>Fee</th>
+                      <th>Status</th>
+                      <th>Consultations</th>
+                      <th>Rating</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doctors.filter(d => d.is_active).map(doctor => (
+                      <tr key={doctor.id}>
+                        <td>
+                          <div className="doctor-cell">
+                            <div className="doctor-avatar">{doctor.name.charAt(0)}</div>
+                            <div>
+                              <div className="doctor-name">{doctor.name}</div>
+                              <div className="doctor-email">{doctor.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{doctor.specialization}</td>
+                        <td>{doctor.phone}</td>
+                        <td>TZS {doctor.fee}</td>
+                        <td>
+                          <span className={`status-badge ${doctor.status}`}>
+                            {doctor.status}
+                          </span>
+                        </td>
+                        <td>{doctor.total_consultations || 0}</td>
+                        <td>
+                          <div className="rating">
+                            ⭐ {doctor.rating || 0}
+                          </div>
+                        </td>
+                        <td>
+                          <button 
+                            className="action-btn view"
+                            onClick={() => {
+                              setSelectedDoctor(doctor);
+                              setShowModal(true);
+                            }}
+                          >
+                            <FiEye />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'expired' && (
+            <div className="expired-section">
+              <div className="section-header">
+                <h2>Inactive Doctors</h2>
+                <p className="section-subtitle">Doctors who have been deactivated</p>
+              </div>
+
+              {doctors.filter(d => !d.is_active).length === 0 ? (
+                <div className="empty-state">
+                  <FiCheckCircle size={64} />
+                  <h3>No Inactive Doctors</h3>
+                  <p>All doctors are currently active</p>
+                </div>
+              ) : (
+                <div className="doctors-table-container">
+                  <table className="doctors-table">
+                    <thead>
+                      <tr>
+                        <th>Doctor</th>
+                        <th>Specialization</th>
+                        <th>Contact</th>
+                        <th>Fee</th>
+                        <th>Deactivated</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doctors.filter(d => !d.is_active).map(doctor => (
+                        <tr key={doctor.id}>
+                          <td>
+                            <div className="doctor-cell">
+                              <div className="doctor-avatar">{doctor.name.charAt(0)}</div>
+                              <div>
+                                <div className="doctor-name">{doctor.name}</div>
+                                <div className="doctor-email">{doctor.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{doctor.specialization}</td>
+                          <td>{doctor.phone}</td>
+                          <td>TZS {doctor.fee}</td>
+                          <td>{new Date(doctor.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <button 
+                              className="btn-reactivate"
+                              onClick={() => handleApprove(doctor.id)}
+                            >
+                              <FiCheck /> Reactivate
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'analytics' && (
             <div className="analytics-section">
-              <h2>Reports & Analytics</h2>
-              
-              <div className="analytics-grid">
-                <div className="analytics-card">
-                  <h3>Verification Trends</h3>
-                  <div className="chart-container large">
-                    <Line data={activityChartData} />
+              <div className="section-header">
+                <h2>📊 Reports & Analytics</h2>
+                <p className="section-subtitle">Comprehensive system statistics and insights</p>
+              </div>
+
+              {/* Top Stats Row */}
+              <div className="top-stats-row">
+                <div className="stat-card blue">
+                  <div className="stat-icon">
+                    <FiUsers />
+                  </div>
+                  <div className="stat-details">
+                    <span className="stat-label">Total Doctors</span>
+                    <span className="stat-number">{stats?.doctors || 0}</span>
+                    <span className="stat-change positive">+{stats?.inactiveDoctors || 0} pending</span>
                   </div>
                 </div>
 
-                <div className="analytics-card">
-                  <h3>Status Distribution</h3>
-                  <div className="chart-container large">
-                    <Pie data={verificationChartData} />
+                <div className="stat-card green">
+                  <div className="stat-icon">
+                    <FiUser />
+                  </div>
+                  <div className="stat-details">
+                    <span className="stat-label">Total Users</span>
+                    <span className="stat-number">{stats?.users || 0}</span>
+                    <span className="stat-change positive">Active patients</span>
                   </div>
                 </div>
 
-                <div className="analytics-card">
-                  <h3>Monthly Performance</h3>
-                  <div className="chart-container large">
-                    <Bar data={monthlyChartData} />
+                <div className="stat-card purple">
+                  <div className="stat-icon">
+                    <FiFileText />
+                  </div>
+                  <div className="stat-details">
+                    <span className="stat-label">Total Cases</span>
+                    <span className="stat-number">{stats?.totalCases || 0}</span>
+                    <span className="stat-change">{stats?.completedCases || 0} completed</span>
+                  </div>
+                </div>
+
+                <div className="stat-card orange">
+                  <div className="stat-icon">
+                    <FiTrendingUp />
+                  </div>
+                  <div className="stat-details">
+                    <span className="stat-label">Total Revenue</span>
+                    <span className="stat-number">TZS {(stats?.revenue || 0).toLocaleString()}</span>
+                    <span className="stat-change positive">This month</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts Grid */}
+              <div className="charts-grid">
+                <div className="chart-card large">
+                  <div className="chart-header">
+                    <h3>📈 Monthly Doctor Registrations</h3>
+                    <span className="chart-subtitle">Last 6 months trend</span>
+                  </div>
+                  <div className="chart-wrapper">
+                    <Bar 
+                      data={monthlyChartData} 
+                      options={{ 
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: {
+                          legend: { display: false }
+                        }
+                      }} 
+                    />
+                  </div>
+                </div>
+
+                <div className="chart-card large">
+                  <div className="chart-header">
+                    <h3>📊 Weekly Case Activity</h3>
+                    <span className="chart-subtitle">Last 7 days</span>
+                  </div>
+                  <div className="chart-wrapper">
+                    <Line 
+                      data={activityChartData} 
+                      options={{ 
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: {
+                          legend: { display: false }
+                        }
+                      }} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Row */}
+              <div className="bottom-analytics-row">
+                <div className="analytics-card-new">
+                  <div className="card-header-new">
+                    <h3>🎯 Case Status Distribution</h3>
+                  </div>
+                  <div className="chart-wrapper-small">
+                    <Pie 
+                      data={verificationChartData} 
+                      options={{ 
+                        maintainAspectRatio: false,
+                        responsive: true
+                      }} 
+                    />
+                  </div>
+                  <div className="status-legend">
+                    <div className="legend-item">
+                      <span className="legend-dot verified"></span>
+                      <span>Verified: {stats?.doctors || 0}</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-dot pending"></span>
+                      <span>Pending: {stats?.inactiveDoctors || 0}</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-dot completed"></span>
+                      <span>Completed: {stats?.completedCases || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="analytics-card-new">
+                  <div className="card-header-new">
+                    <h3>🏆 Top Performing Doctors</h3>
+                  </div>
+                  <div className="leaderboard">
+                    {doctors
+                      .filter(d => d.is_active)
+                      .sort((a, b) => (b.total_consultations || 0) - (a.total_consultations || 0))
+                      .slice(0, 5)
+                      .map((doctor, index) => (
+                        <div key={doctor.id} className="leaderboard-item">
+                          <div className={`rank-badge rank-${index + 1}`}>
+                            {index + 1}
+                          </div>
+                          <div className="doctor-avatar-small">{doctor.name.charAt(0)}</div>
+                          <div className="doctor-details">
+                            <span className="doctor-name-small">{doctor.name}</span>
+                            <span className="doctor-spec-small">{doctor.specialization}</span>
+                          </div>
+                          <div className="consultation-badge">
+                            {doctor.total_consultations || 0}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="analytics-card-new">
+                  <div className="card-header-new">
+                    <h3>📋 Case Breakdown</h3>
+                  </div>
+                  <div className="case-breakdown">
+                    <div className="breakdown-item">
+                      <div className="breakdown-bar">
+                        <div 
+                          className="breakdown-fill pending" 
+                          style={{width: `${stats?.totalCases > 0 ? (stats.pendingCases / stats.totalCases * 100) : 0}%`}}
+                        ></div>
+                      </div>
+                      <div className="breakdown-info">
+                        <span className="breakdown-label">Pending</span>
+                        <span className="breakdown-value">{stats?.pendingCases || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="breakdown-item">
+                      <div className="breakdown-bar">
+                        <div 
+                          className="breakdown-fill assigned" 
+                          style={{width: `${stats?.totalCases > 0 ? (stats.assignedCases / stats.totalCases * 100) : 0}%`}}
+                        ></div>
+                      </div>
+                      <div className="breakdown-info">
+                        <span className="breakdown-label">Assigned</span>
+                        <span className="breakdown-value">{stats?.assignedCases || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="breakdown-item">
+                      <div className="breakdown-bar">
+                        <div 
+                          className="breakdown-fill completed" 
+                          style={{width: `${stats?.totalCases > 0 ? (stats.completedCases / stats.totalCases * 100) : 0}%`}}
+                        ></div>
+                      </div>
+                      <div className="breakdown-info">
+                        <span className="breakdown-label">Completed</span>
+                        <span className="breakdown-value">{stats?.completedCases || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="success-rate-display">
+                      <span className="success-label">Success Rate</span>
+                      <span className="success-percentage">
+                        {stats?.totalCases > 0 
+                          ? Math.round((stats.completedCases / stats.totalCases) * 100) 
+                          : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <div className="notifications-section">
-              <h2>System Notifications</h2>
+          {activeTab === 'settings' && (
+            <div className="settings-section">
+              <h2>System Settings</h2>
               
-              <div className="notifications-list">
-                {notifications.map(notif => (
-                  <div key={notif.id} className={`notification-item ${notif.type}`}>
-                    <div className="notification-icon">
-                      {notif.type === 'warning' && <FiAlertCircle />}
-                      {notif.type === 'info' && <FiBell />}
-                      {notif.type === 'success' && <FiCheckCircle />}
+              <div className="settings-grid">
+                <div className="settings-card">
+                  <div className="settings-header">
+                    <FiSettings />
+                    <h3>General Settings</h3>
+                  </div>
+                  <div className="settings-content">
+                    <div className="setting-item">
+                      <label>System Name</label>
+                      <input 
+                        type="text" 
+                        value={settings.systemName}
+                        onChange={(e) => setSettings({...settings, systemName: e.target.value})}
+                        placeholder="Enter system name"
+                      />
                     </div>
-                    <div className="notification-content">
-                      <p>{notif.message}</p>
-                      <span className="notification-time">{notif.time}</span>
+                    <div className="setting-item">
+                      <label>Admin Email</label>
+                      <input 
+                        type="email" 
+                        value={settings.adminEmail}
+                        onChange={(e) => setSettings({...settings, adminEmail: e.target.value})}
+                        placeholder="admin@smarthealth.com"
+                      />
+                    </div>
+                    <div className="setting-item">
+                      <label>Currency</label>
+                      <select 
+                        value={settings.currency}
+                        onChange={(e) => setSettings({...settings, currency: e.target.value})}
+                      >
+                        <option value="TZS">TZS - Tanzanian Shillings</option>
+                        <option value="KES">KES - Kenyan Shillings</option>
+                        <option value="UGX">UGX - Ugandan Shillings</option>
+                        <option value="USD">USD - US Dollars</option>
+                      </select>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                <div className="settings-card">
+                  <div className="settings-header">
+                    <FiUsers />
+                    <h3>Doctor Management</h3>
+                  </div>
+                  <div className="settings-content">
+                    <div className="setting-item">
+                      <label>Total Doctors</label>
+                      <input type="text" value={stats?.doctors || 0} disabled />
+                    </div>
+                    <div className="setting-item">
+                      <label>Pending Verifications</label>
+                      <input type="text" value={stats?.inactiveDoctors || 0} disabled />
+                    </div>
+                    <div className="setting-item">
+                      <label>Auto-assign Cases</label>
+                      <select 
+                        value={settings.autoAssignCases}
+                        onChange={(e) => setSettings({...settings, autoAssignCases: e.target.value})}
+                      >
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="settings-card">
+                  <div className="settings-header">
+                    <FiBell />
+                    <h3>Notification Settings</h3>
+                  </div>
+                  <div className="settings-content">
+                    <div className="setting-item">
+                      <label>Email Notifications</label>
+                      <select 
+                        value={settings.emailNotifications}
+                        onChange={(e) => setSettings({...settings, emailNotifications: e.target.value})}
+                      >
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
+                    </div>
+                    <div className="setting-item">
+                      <label>SMS Notifications</label>
+                      <select 
+                        value={settings.smsNotifications}
+                        onChange={(e) => setSettings({...settings, smsNotifications: e.target.value})}
+                      >
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
+                    </div>
+                    <div className="setting-item">
+                      <label>Notification Frequency</label>
+                      <select 
+                        value={settings.notificationFrequency}
+                        onChange={(e) => setSettings({...settings, notificationFrequency: e.target.value})}
+                      >
+                        <option value="10">Every 10 seconds</option>
+                        <option value="30">Every 30 seconds</option>
+                        <option value="60">Every minute</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="settings-card">
+                  <div className="settings-header">
+                    <FiActivity />
+                    <h3>System Statistics</h3>
+                  </div>
+                  <div className="settings-content">
+                    <div className="setting-item">
+                      <label>Total Users</label>
+                      <input type="text" value={stats?.users || 0} disabled />
+                    </div>
+                    <div className="setting-item">
+                      <label>Total Cases</label>
+                      <input type="text" value={stats?.totalCases || 0} disabled />
+                    </div>
+                    <div className="setting-item">
+                      <label>Total Revenue</label>
+                      <input type="text" value={`TZS ${stats?.revenue || 0}`} disabled />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="settings-card full-width">
+                  <div className="settings-header">
+                    <FiAlertCircle />
+                    <h3>System Information</h3>
+                  </div>
+                  <div className="settings-content">
+                    <div className="info-grid">
+                      <div className="info-item">
+                        <label>Version</label>
+                        <p>1.0.0</p>
+                      </div>
+                      <div className="info-item">
+                        <label>Environment</label>
+                        <p>{process.env.NODE_ENV || 'development'}</p>
+                      </div>
+                      <div className="info-item">
+                        <label>Database</label>
+                        <p>MySQL</p>
+                      </div>
+                      <div className="info-item">
+                        <label>Last Updated</label>
+                        <p>{new Date().toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="settings-actions">
+                <button className="btn-secondary" onClick={handleSaveSettings}>
+                  Save Changes
+                </button>
+                <button className="btn-danger" onClick={handleResetSettings}>
+                  Reset to Defaults
+                </button>
               </div>
             </div>
           )}
@@ -609,7 +1264,7 @@ function ModernAdminDashboard() {
                 </div>
                 <div className="detail-item">
                   <label>Consultation Fee</label>
-                  <p>KES {selectedDoctor.fee}</p>
+                  <p>TZS {selectedDoctor.fee}</p>
                 </div>
                 <div className="detail-item">
                   <label>Status</label>

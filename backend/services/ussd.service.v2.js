@@ -123,17 +123,15 @@ Please enter your full name:`;
 
 Name must be at least 3 characters.
 
-Please dial again:
-${process.env.AT_USSD_CODE || '*384*34153#'}
+// Please dial again:
+// ${process.env.AT_USSD_CODE || '*384*34153#'}
 
-Thank you!`;
+Thank you! now u can use smarthealth`;
       }
       
       await this.saveSession(sessionId, null, phoneNumber, 'registration_password', { name });
       return `CON Hello ${name}!
-Create a 4-digit PIN:
-(This will protect your medical records)
-Example: 1234`;
+Create a 4-digit PIN:`;
     }
     
     // Step 3: Confirm password and create account
@@ -145,11 +143,8 @@ Example: 1234`;
         return `END Invalid PIN
 
 PIN must be exactly 4 digits.
-Example: 1234
-
 Please dial again:
-${process.env.AT_USSD_CODE || '*384*34153#'}
-
+// ${process.env.AT_USSD_CODE || '*384*34153#'}
 Thank you!`;
       }
       
@@ -172,17 +167,13 @@ Thank you!`;
 
 Umesajiliwa kikamilifu.
 Una ushauri 3 wa BURE!
-
-Piga: ${process.env.AT_USSD_CODE || '*384*34153#'}
-
+// Piga: ${process.env.AT_USSD_CODE || '*384*34153#'}
 Asante!`
           : `Welcome to SmartHealth, ${name}!
 
 Registration successful.
 You have 3 FREE consultations!
-
-Dial: ${process.env.AT_USSD_CODE || '*384*34153#'}
-
+// Dial: ${process.env.AT_USSD_CODE || '*384*34153#'}
 Thank you!`;
         
         await SMSService.sendSMS(phoneNumber, welcomeMessage);
@@ -198,8 +189,8 @@ Name: ${name}
 Phone: ${phoneNumber}
 Trial: 3 FREE consultations
 
-Dial to start:
-${process.env.AT_USSD_CODE || '*384*34153#'}
+// Dial to start:
+// ${process.env.AT_USSD_CODE || '*384*34153#'}
 
 Welcome to SmartHealth!`;
     }
@@ -217,7 +208,6 @@ Welcome to SmartHealth!`;
         // Payment successful - ask for symptoms
         return lang === 'sw'
           ? `CON Malipo Yamekamilika!
-
 Sasa andika dalili zako kwa undani:
 (Angalau sentensi 2)
 
@@ -309,8 +299,7 @@ Enter your 4-digit PIN:`;
 The PIN you entered is wrong.
 
 Please dial again:
-${process.env.AT_USSD_CODE || '*384*34153#'}
-
+// ${process.env.AT_USSD_CODE || '*384*34153#'}
 Forgot PIN? Contact support.
 Thank you!`;
       }
@@ -341,13 +330,13 @@ Thank you!`;
       });
       
       if (menuOption === '1') {
-        return this.handleTrialFlow(user, ['1', ...inputs.slice(2)], language, sessionId);
+        return this.handleTrialFlow(user, inputs.slice(2), language, sessionId);
       } else if (menuOption === '2') {
-        return this.handlePaidFlow(user, ['2', ...inputs.slice(2)], language, sessionId);
+        return this.handlePaidFlow(user, inputs.slice(2), language, sessionId);
       } else if (menuOption === '3') {
-        return this.handleVoiceCall(user, ['3', ...inputs.slice(2)], language);
+        return this.handleVoiceCall(user, inputs.slice(2), language);
       } else if (menuOption === '4') {
-        return this.handleHistory(user, ['4', ...inputs.slice(2)], language);
+        return this.handleHistory(user, inputs.slice(2), language);
       } else if (menuOption === '5') {
         return this.handleLanguageChange(user, ['5', ...inputs.slice(2)]);
       } else if (menuOption === '6') {
@@ -398,15 +387,12 @@ Karibu ${user.name || 'Mtumiaji'}
     if (inputs.length === 0) {
       if (!isInTrial) {
         return lang === 'sw' 
-          ? `END Kipindi cha Bure Kimeisha
-
-Umeshatumia ushauri 3 wa bure.
+          ? `END Kipindi cha Bure Kimeisha.
 Tafadhali chagua "Malipo" kutoka menyu kuu.
 
 Asante!`
           : `END Trial Period Ended
 
-You've used all 3 free consultations.
 Please choose "Paid Consultation" from main menu.
 
 Thank you!`;
@@ -416,13 +402,9 @@ Thank you!`;
       
       return lang === 'sw'
         ? `CON Ushauri wa Bure (${remaining} zimebaki)
-Andika dalili zako kwa undani:
-(Angalau sentensi 2)
-Mfano: Nina maumivu ya kichwa na homa kwa siku 2`
+Andika dalili zako kwa undani:`
         : `CON Free Trial Consultation (${remaining} remaining)
-Describe your symptoms in detail:
-(At least 2 sentences)
-Example: I have severe headache and fever for 2 days`;
+Describe your symptoms in detail:`;
     }
 
     if (inputs.length === 1) {
@@ -431,15 +413,13 @@ Example: I have severe headache and fever for 2 days`;
       if (symptoms.length < 20) {
         return lang === 'sw'
           ? `END Maelezo Mafupi Sana
-
 Tafadhali eleza dalili zako kwa undani zaidi.
-Angalau sentensi 2 au maneno 20.
+
 
 Jaribu tena!`
           : `END Description Too Short
-
 Please provide more detailed symptoms.
-At least 2 sentences or 20 words.
+
 
 Try again!`;
       }
@@ -532,7 +512,7 @@ Thank you!`;
       
       doctors.forEach((doc, index) => {
         menu += `${index + 1}. Dr. ${doc.name}\n`;
-        menu += `${doc.specialization} - KES ${doc.fee}\n`;
+        menu += `${doc.specialization} - TZS ${doc.fee}\n`;
       });
 
       // Store doctors in session (preserve authentication)
@@ -588,16 +568,16 @@ Thank you!`;
         return lang === 'sw'
           ? `CON HONGERA! Ushauri wa BURE!
 Daktari: ${selectedDoctor.name}
-Bei ya kawaida: KES ${selectedDoctor.fee}
-Punguzo: -KES ${discount}
-Bei yako: KES 0
+Bei ya kawaida: TZS ${selectedDoctor.fee}
+Punguzo: -TZS ${discount}
+Bei yako: TZS 0
 1. Endelea
 2. Rudi`
           : `CON CONGRATULATIONS! FREE Consultation!
 Doctor: ${selectedDoctor.name}
-Regular price: KES ${selectedDoctor.fee}
-Discount: -KES ${discount}
-Your price: KES 0
+Regular price: TZS ${selectedDoctor.fee}
+Discount: -TZS ${discount}
+Your price: TZS 0
 1. Continue
 2. Back`;
       }
@@ -605,19 +585,19 @@ Your price: KES 0
       return lang === 'sw'
         ? `CON MALIPO YANAHITAJIKA
 Daktari: ${selectedDoctor.name}
-Bei: KES ${selectedDoctor.fee}${discount > 0 ? `\nPunguzo: -KES ${discount}` : ''}
-Jumla: KES ${finalAmount}
+Bei: TZS ${selectedDoctor.fee}${discount > 0 ? `\nPunguzo: -TZS ${discount}` : ''}
+Jumla: TZS ${finalAmount}
 Chagua njia ya malipo:
 1. Malipo ya Simu
-2. Salio (KES ${user.balance})
+2. Salio (TZS ${user.balance})
 3. Rudi`
         : `CON PAYMENT REQUIRED
 Doctor: ${selectedDoctor.name}
-Fee: KES ${selectedDoctor.fee}${discount > 0 ? `\nDiscount: -KES ${discount}` : ''}
-Total: KES ${finalAmount}
+Fee: TZS ${selectedDoctor.fee}${discount > 0 ? `\nDiscount: -TZS ${discount}` : ''}
+Total: TZS ${finalAmount}
 Select payment method:
 1. Mobile Payment
-2. Balance (KES ${user.balance})
+2. Balance (TZS ${user.balance})
 3. Back`;
     }
 
@@ -685,7 +665,7 @@ Select payment method:
           return lang === 'sw'
             ? `END Ombi la Malipo Limetumwa!
 
-Kiasi: KES ${finalAmount}
+Kiasi: TZS ${finalAmount}
 Nambari: ${user.phone}
 
 Utapokea SMS ya malipo.
@@ -696,7 +676,7 @@ Kesi: #${tempCase.id}
 Asante!`
             : `END Payment Request Sent!
 
-Amount: KES ${finalAmount}
+Amount: TZS ${finalAmount}
 Number: ${user.phone}
 
 You will receive payment SMS.
@@ -731,9 +711,9 @@ Thank you!`;
           return lang === 'sw'
             ? `END Salio Haitoshi!
 
-Salio lako: KES ${user.balance}
-Unahitaji: KES ${finalAmount}
-Upungufu: KES ${shortage}
+Salio lako: TZS ${user.balance}
+Unahitaji: TZS ${finalAmount}
+Upungufu: TZS ${shortage}
 
 Tafadhali:
 1. Tumia Malipo ya Simu, au
@@ -742,9 +722,9 @@ Tafadhali:
 Asante!`
             : `END Insufficient Balance!
 
-Your balance: KES ${user.balance}
-Required: KES ${finalAmount}
-Short by: KES ${shortage}
+Your balance: TZS ${user.balance}
+Required: TZS ${finalAmount}
+Short by: TZS ${shortage}
 
 Please:
 1. Use Mobile Payment, or
@@ -772,8 +752,8 @@ Thank you!`;
         return lang === 'sw'
           ? `CON Malipo Yamefanikiwa!
 
-Kiasi: KES ${finalAmount}
-Salio mpya: KES ${user.balance - finalAmount}
+Kiasi: TZS ${finalAmount}
+Salio mpya: TZS ${user.balance - finalAmount}
 
 Sasa andika dalili zako kwa undani:
 (Angalau sentensi 2)
@@ -781,8 +761,8 @@ Sasa andika dalili zako kwa undani:
 Mfano: Nina maumivu ya tumbo na kuhara kwa siku 3`
           : `CON Payment Successful!
 
-Amount: KES ${finalAmount}
-New balance: KES ${user.balance - finalAmount}
+Amount: TZS ${finalAmount}
+New balance: TZS ${user.balance - finalAmount}
 
 Now describe your symptoms in detail:
 (At least 2 sentences)
@@ -869,7 +849,7 @@ Thank you!`;
           ? `Malipo yamekamilika! Ushauri wako umepokelewa.
 
 Daktari: ${selectedDoctor.name}
-Kiasi: KES ${finalAmount}
+Kiasi: TZS ${finalAmount}
 Kesi: #${caseData.id}
 
 Daktari atakujibu kupitia SMS ndani ya dakika 5-30.
@@ -884,7 +864,7 @@ SmartHealth`
           : `Payment completed! Your consultation has been received.
 
 Doctor: ${selectedDoctor.name}
-Amount: KES ${finalAmount}
+Amount: TZS ${finalAmount}
 Case: #${caseData.id}
 
 Doctor will respond via SMS within 5-30 minutes.
@@ -907,7 +887,7 @@ SmartHealth`;
         ? `END Malipo Yamekamilika!
 
 Daktari: ${selectedDoctor.name}
-Kiasi: KES ${finalAmount}
+Kiasi: TZS ${finalAmount}
 Kesi: #${caseData.id}
 
 Muda: Dakika 5-30
@@ -917,7 +897,7 @@ Asante kutumia SmartHealth!`
         : `END Payment Completed!
 
 Doctor: ${selectedDoctor.name}
-Amount: KES ${finalAmount}
+Amount: TZS ${finalAmount}
 Case: #${caseData.id}
 
 Time: 5-30 minutes
@@ -964,9 +944,9 @@ Piga nambari hii kuongea na daktari:
 ${voiceNumber}
 
 Bei:
-- Dakika 1-5: KES 100
-- Dakika 6-10: KES 200
-- Dakika 11+: KES 50/dakika
+- Dakika 1-5: TZS 100
+- Dakika 6-10: TZS 200
+- Dakika 11+: TZS 50/dakika
 
 Malipo yatatolewa baada ya simu.
 
@@ -977,9 +957,9 @@ Call this number to speak with a doctor:
 ${voiceNumber}
 
 Rates:
-- Minutes 1-5: KES 100
-- Minutes 6-10: KES 200
-- Minutes 11+: KES 50/min
+- Minutes 1-5: TZS 100
+- Minutes 6-10: TZS 200
+- Minutes 11+: TZS 50/min
 
 Payment will be charged after call.
 

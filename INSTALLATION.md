@@ -180,9 +180,9 @@ This script will:
 
 | Name | Email | Password | Specialization | Fee |
 |------|-------|----------|----------------|-----|
-| Dr. John Kamau | john.kamau@smarthealth.com | doctor123 | General Practitioner | KES 500 |
-| Dr. Mary Wanjiku | mary.wanjiku@smarthealth.com | doctor123 | Pediatrician | KES 800 |
-| Dr. James Omondi | james.omondi@smarthealth.com | doctor123 | Dermatologist | KES 1000 |
+| Dr. John Kamau | john.kamau@smarthealth.com | doctor123 | General Practitioner | TZS 500 |
+| Dr. Mary Wanjiku | mary.wanjiku@smarthealth.com | doctor123 | Pediatrician | TZS 800 |
+| Dr. James Omondi | james.omondi@smarthealth.com | doctor123 | Dermatologist | TZS 1000 |
 
 ### Manual Database Setup (if script fails)
 

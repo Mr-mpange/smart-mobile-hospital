@@ -3,22 +3,51 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import Login from './pages/Login';
+import UnifiedLogin from './pages/UnifiedLogin';
 import Dashboard from './pages/Dashboard';
-import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ModernAdminDashboard from './pages/ModernAdminDashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+  
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+  
+  return children;
 }
 
 function AdminRoute({ children }) {
   const token = localStorage.getItem('token');
   const userType = localStorage.getItem('userType');
-  return token && userType === 'admin' ? children : <Navigate to="/admin/login" />;
+  
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (userType !== 'admin') {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
+}
+
+function DoctorRoute({ children }) {
+  const token = localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+  
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (userType !== 'doctor') {
+    return <Navigate to="/admin/dashboard" />;
+  }
+  
+  return children;
 }
 
 function App() {
@@ -27,19 +56,20 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
+            {/* Unified Login */}
+            <Route path="/login" element={<UnifiedLogin />} />
+            
             {/* Doctor Routes */}
-            <Route path="/login" element={<Login />} />
             <Route
               path="/dashboard"
               element={
-                <PrivateRoute>
+                <DoctorRoute>
                   <Dashboard />
-                </PrivateRoute>
+                </DoctorRoute>
               }
             />
             
             {/* Admin Routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/admin/dashboard"
               element={
@@ -57,7 +87,7 @@ function App() {
               }
             />
             
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/" element={<Navigate to="/login" />} />
           </Routes>
           <ToastContainer position="top-right" autoClose={3000} />
         </div>

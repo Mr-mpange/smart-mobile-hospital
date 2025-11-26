@@ -113,15 +113,15 @@ Step 1: Select Doctor
 │                                 │
 │ 1. Dr. John Kamau               │
 │    General Practitioner         │
-│    KES 500                      │
+│    TZS 500                      │
 │                                 │
 │ 2. Dr. Mary Wanjiku             │
 │    Pediatrician                 │
-│    KES 800                      │
+│    TZS 800                      │
 │                                 │
 │ 3. Dr. James Omondi             │
 │    Dermatologist                │
-│    KES 1,000                    │
+│    TZS 1,000                    │
 └─────────────────────────────────┘
 User selects: 1
 
@@ -130,12 +130,12 @@ Step 2: PAYMENT OPTIONS
 │ CON PAYMENT REQUIRED            │
 │                                 │
 │ Doctor: Dr. John Kamau          │
-│ Fee: KES 500                    │
-│ Total: KES 500                  │
+│ Fee: TZS 500                    │
+│ Total: TZS 500                  │
 │                                 │
 │ Select payment method:          │
 │ 1. M-Pesa                       │
-│ 2. Balance (KES 200)            │
+│ 2. Balance (TZS 200)            │
 │ 3. Back                         │
 └─────────────────────────────────┘
 
@@ -143,7 +143,7 @@ Option A: User selects M-Pesa (1)
 ┌─────────────────────────────────┐
 │ END Payment request sent!       │
 │                                 │
-│ Amount: KES 500                 │
+│ Amount: TZS 500                 │
 │ Number: +254712345678           │
 │                                 │
 │ You will receive M-Pesa SMS.    │
@@ -154,9 +154,9 @@ Option B: User selects Balance (2) - Insufficient
 ┌─────────────────────────────────┐
 │ END Insufficient balance!       │
 │                                 │
-│ Required: KES 500               │
-│ You have: KES 200               │
-│ Short: KES 300                  │
+│ Required: TZS 500               │
+│ You have: TZS 200               │
+│ Short: TZS 300                  │
 │                                 │
 │ Please use M-Pesa.              │
 └─────────────────────────────────┘
@@ -164,7 +164,7 @@ Option B: User selects Balance (2) - Insufficient
 Option C: User selects Balance (2) - Sufficient
 ┌─────────────────────────────────┐
 │ CON Payment successful!         │
-│ Amount: KES 500                 │
+│ Amount: TZS 500                 │
 │                                 │
 │ Now enter your symptoms:        │
 │ (At least 2 sentences)          │
@@ -176,7 +176,7 @@ Step 3: Confirmation
 │ END Thank you! Payment completed│
 │                                 │
 │ Doctor: Dr. John Kamau          │
-│ Amount: KES 500                 │
+│ Amount: TZS 500                 │
 │ Case: #124                      │
 │                                 │
 │ You will receive response via   │
@@ -192,20 +192,20 @@ Step 3: Confirmation
 User has completed 5 consultations (20% discount)
 
 Step 1: Select Doctor
-User selects: 1 (Dr. John Kamau - KES 500)
+User selects: 1 (Dr. John Kamau - TZS 500)
 
 Step 2: PAYMENT with DISCOUNT
 ┌─────────────────────────────────┐
 │ CON PAYMENT REQUIRED            │
 │                                 │
 │ Doctor: Dr. John Kamau          │
-│ Fee: KES 500                    │
-│ Discount: -KES 100 (20%)        │
-│ Total: KES 400                  │
+│ Fee: TZS 500                    │
+│ Discount: -TZS 100 (20%)        │
+│ Total: TZS 400                  │
 │                                 │
 │ Select payment method:          │
 │ 1. M-Pesa                       │
-│ 2. Balance (KES 500)            │
+│ 2. Balance (TZS 500)            │
 │ 3. Back                         │
 └─────────────────────────────────┘
 ```
@@ -218,7 +218,7 @@ Step 2: PAYMENT with DISCOUNT
 User has completed 10 consultations (1 FREE)
 
 Step 1: Select Doctor
-User selects: 2 (Dr. Mary Wanjiku - KES 800)
+User selects: 2 (Dr. Mary Wanjiku - TZS 800)
 
 Step 2: FREE CONSULTATION
 ┌─────────────────────────────────┐
@@ -226,9 +226,9 @@ Step 2: FREE CONSULTATION
 │ FREE consultation!              │
 │                                 │
 │ Doctor: Dr. Mary Wanjiku        │
-│ Regular: KES 800                │
-│ Discount: KES 800               │
-│ Your price: KES 0               │
+│ Regular: TZS 800                │
+│ Discount: TZS 800               │
+│ Your price: TZS 0               │
 │                                 │
 │ 1. Continue                     │
 │ 2. Back                         │

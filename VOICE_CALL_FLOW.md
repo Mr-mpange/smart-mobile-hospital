@@ -166,9 +166,9 @@ Patient calls → Africa's Talking → Your Server
 **After Call:**
 - System calculates call duration
 - Charges based on pricing:
-  - Minutes 1-5: KES 100
-  - Minutes 6-10: KES 200
-  - Minutes 11+: KES 50/minute
+  - Minutes 1-5: TZS 2,000
+  - Minutes 6-10: TZS 4,000
+  - Minutes 11+: TZS 1,000/minute
 
 **Payment SMS:**
 ```
@@ -176,7 +176,7 @@ SmartHealth Consultation
 
 Doctor: Dr. John Kamau
 Duration: 8 minutes
-Amount: KES 200
+Amount: TZS 4,000
 
 Pay via Mobile Payment:
 [Payment link]
@@ -239,25 +239,25 @@ ngrok http 5000
 ## Voice Call Pricing
 
 ### Africa's Talking Rates (Kenya):
-- **Incoming calls:** ~KES 2/minute
-- **Outgoing calls:** ~KES 3/minute
-- **Voice number:** ~KES 500/month
+- **Incoming calls:** ~TZS 40/minute
+- **Outgoing calls:** ~TZS 60/minute
+- **Voice number:** ~TZS 10,000/month
 
 ### Your Pricing to Patients:
-- **Minutes 1-5:** KES 100 (flat)
-- **Minutes 6-10:** KES 200 (flat)
-- **Minutes 11+:** KES 50/minute
+- **Minutes 1-5:** TZS 2,000 (flat)
+- **Minutes 6-10:** TZS 4,000 (flat)
+- **Minutes 11+:** TZS 1,000/minute
 
 ### Example Profit:
 - 5-minute call:
-  - Cost: KES 10 (2 x 5)
-  - Charge: KES 100
-  - Profit: KES 90
+  - Cost: TZS 200 (40 x 5)
+  - Charge: TZS 2,000
+  - Profit: TZS 1,800
 
 - 15-minute call:
-  - Cost: KES 30 (2 x 15)
-  - Charge: KES 450 (200 + 50x5)
-  - Profit: KES 420
+  - Cost: TZS 600 (40 x 15)
+  - Charge: TZS 9,000 (4,000 + 1,000x5)
+  - Profit: TZS 8,400
 
 ---
 

@@ -142,7 +142,7 @@ class USSDService {
         : 'CON Select Doctor:\n';
       
       doctors.forEach((doc, index) => {
-        menu += `${index + 1}. ${doc.name} - ${doc.specialization} (KES ${doc.fee})\n`;
+        menu += `${index + 1}. ${doc.name} - ${doc.specialization} (TZS ${doc.fee})\n`;
       });
 
       // Store doctors in session for later reference
@@ -207,8 +207,8 @@ class USSDService {
           // In production, integrate with Zenopay here
           return this.response(
             lang === 'sw'
-              ? `END Tafadhali lipa KES ${finalAmount} kupitia Zenopay. Utapokea SMS ya malipo.`
-              : `END Please pay KES ${finalAmount} via Zenopay. You will receive payment SMS.`,
+              ? `END Tafadhali lipa TZS ${finalAmount} kupitia Zenopay. Utapokea SMS ya malipo.`
+              : `END Please pay TZS ${finalAmount} via Zenopay. You will receive payment SMS.`,
             false
           );
         }

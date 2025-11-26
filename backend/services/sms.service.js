@@ -288,7 +288,7 @@ Au piga ${process.env.AT_USSD_CODE} kwa menyu ya USSD`
       : 'Available Doctors:\n\n';
     
     doctors.forEach((doc, index) => {
-      message += `${index + 1}. ${doc.name}\n   ${doc.specialization}\n   KES ${doc.fee}\n\n`;
+      message += `${index + 1}. ${doc.name}\n   ${doc.specialization}\n   TZS ${doc.fee}\n\n`;
     });
 
     message += user.language === 'sw'
@@ -335,8 +335,8 @@ Au piga ${process.env.AT_USSD_CODE} kwa menyu ya USSD`
     await User.incrementConsultationCount(user.id);
     
     const msg = user.language === 'sw'
-      ? `Malipo ya KES ${selectedDoctor.fee} yanahitajika. Daktari ${selectedDoctor.name} atakujibu baada ya malipo. Kesi #${caseData.id}`
-      : `Payment of KES ${selectedDoctor.fee} required. Dr. ${selectedDoctor.name} will respond after payment. Case #${caseData.id}`;
+      ? `Malipo ya TZS ${selectedDoctor.fee} yanahitajika. Daktari ${selectedDoctor.name} atakujibu baada ya malipo. Kesi #${caseData.id}`
+      : `Payment of TZS ${selectedDoctor.fee} required. Dr. ${selectedDoctor.name} will respond after payment. Case #${caseData.id}`;
     
     await this.sendSMS(user.phone, msg);
   }

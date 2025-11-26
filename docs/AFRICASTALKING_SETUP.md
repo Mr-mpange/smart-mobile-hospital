@@ -345,9 +345,9 @@ Response format (XML):
 ## Pricing (Kenya)
 
 ### SMS
-- **Outgoing:** KES 0.80 per SMS
+- **Outgoing:** TZS 16 per SMS
 - **Incoming (Shortcode):** Free
-- **Shortcode rental:** KES 5,000/month
+- **Shortcode rental:** TZS 100,000/month
 
 ### USSD
 - **Per session:** KES 0.50 - 1.00

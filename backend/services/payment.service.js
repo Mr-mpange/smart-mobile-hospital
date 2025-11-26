@@ -35,7 +35,7 @@ class PaymentService {
       if (process.env.NODE_ENV === 'development' && process.env.ZENOPAY_MERCHANT_ID === 'your_real_merchant_id_here') {
         console.log('[Payment] Running in TEST mode - simulating payment push');
         console.log(`[Payment] User would receive push notification on: ${user.phone}`);
-        console.log(`[Payment] Amount: KES ${amount}`);
+        console.log(`[Payment] Amount: TZS ${amount}`);
         console.log(`[Payment] To complete payment, call: POST /api/payments/test-complete/${transactionId}`);
         
         // Simulate payment push sent (but keep status as pending)
@@ -59,7 +59,7 @@ class PaymentService {
       const paymentData = {
         merchant_id: process.env.ZENOPAY_MERCHANT_ID,
         amount: amount,
-        currency: 'KES',
+        currency: 'TZS',
         phone: user.phone,
         reference: transactionRef,
         callback_url: `${process.env.ZENOPAY_CALLBACK_URL}?transaction_id=${transactionId}`,
@@ -140,14 +140,57 @@ class PaymentService {
 
     // If successful, update user balance or process case
     if (newStatus === 'completed') {
+      console.log(`[Payment] Payment completed for transaction #${transaction_id}`);
+      console.log(`[Payment] User: ${transaction.user_id}, Amount: ${transaction.amount}`);
+      
       await User.updateBalance(transaction.user_id, transaction.amount);
       
-      // If linked to a case, update case status
+      // If linked to a case, activate the service
       if (transaction.case_id) {
+        console.log(`[Payment] Activating service for case #${transaction.case_id}`);
+        
+        // Update case status to assigned (ready for doctor)
         await pool.query(
-          'UPDATE cases SET status = ? WHERE id = ?',
+          'UPDATE cases SET status = ?, updated_at = NOW() WHERE id = ?',
           ['assigned', transaction.case_id]
         );
+        
+        // Get case details
+        const [cases] = await pool.query(
+          'SELECT c.*, u.phone, u.name, u.language FROM cases c JOIN users u ON c.user_id = u.id WHERE c.id = ?',
+          [transaction.case_id]
+        );
+        
+        if (cases.length > 0) {
+          const caseData = cases[0];
+          
+          // Send SMS notification that service is now active
+          const SMSService = require('./sms.service');
+          const message = caseData.language === 'sw'
+            ? `Malipo yamekamilika! Huduma yako sasa iko hai.
+
+Kesi: #${transaction.case_id}
+Kiasi: TZS ${transaction.amount}
+
+Daktari atakujibu hivi karibuni.
+
+SmartHealth`
+            : `Payment completed! Your service is now active.
+
+Case: #${transaction.case_id}
+Amount: TZS ${transaction.amount}
+
+Doctor will respond shortly.
+
+SmartHealth`;
+          
+          try {
+            await SMSService.sendSMS(caseData.phone, message);
+            console.log(`[Payment] Activation SMS sent to ${caseData.phone}`);
+          } catch (smsError) {
+            console.error('[Payment] Failed to send activation SMS:', smsError.message);
+          }
+        }
       }
     }
 

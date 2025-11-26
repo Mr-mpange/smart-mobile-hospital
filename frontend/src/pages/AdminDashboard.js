@@ -146,7 +146,7 @@ function AdminDashboard() {
               </div>
               <div className="stat-card">
                 <h3>Revenue</h3>
-                <p className="stat-number">KES {stats.revenue.toFixed(2)}</p>
+                <p className="stat-number">TZS {stats.revenue.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -203,7 +203,7 @@ function AdminDashboard() {
                     />
                     <input
                       type="number"
-                      placeholder="Consultation Fee (KES)"
+                      placeholder="Consultation Fee (TZS)"
                       value={newDoctor.fee}
                       onChange={(e) => setNewDoctor({...newDoctor, fee: e.target.value})}
                       required
@@ -239,7 +239,7 @@ function AdminDashboard() {
                     <td>{doctor.email}</td>
                     <td>{doctor.phone}</td>
                     <td>{doctor.specialization}</td>
-                    <td>KES {doctor.fee}</td>
+                    <td>TZS {doctor.fee}</td>
                     <td>
                       <span className={`status-badge ${doctor.status}`}>
                         {doctor.status}
@@ -284,7 +284,7 @@ function AdminDashboard() {
                     <td>{user.name || '-'}</td>
                     <td>{user.email || '-'}</td>
                     <td>{user.consultation_count}</td>
-                    <td>KES {user.balance}</td>
+                    <td>TZS {user.balance}</td>
                     <td>
                       {user.trial_end ? (
                         new Date(user.trial_end) > new Date() ? 'Active' : 'Expired'

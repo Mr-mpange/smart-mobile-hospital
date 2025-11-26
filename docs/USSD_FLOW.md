@@ -49,9 +49,9 @@ User dials *123#
 Main Menu (Select 2)
     ↓
 CON Select Doctor:
-1. Dr. John Kamau - General Practitioner (KES 500)
-2. Dr. Mary Wanjiku - Pediatrician (KES 800)
-3. Dr. James Omondi - Dermatologist (KES 1000)
+1. Dr. John Kamau - General Practitioner (TZS 500)
+2. Dr. Mary Wanjiku - Pediatrician (TZS 800)
+3. Dr. James Omondi - Dermatologist (TZS 1000)
     ↓
 User selects doctor (e.g., 1)
     ↓
@@ -218,8 +218,8 @@ END Please provide more detailed symptoms.
 When offer is available:
 ```
 CON You have a 20% discount offer!
-Original: KES 500
-Discounted: KES 400
+Original: TZS 500
+Discounted: TZS 400
 
 Enter your symptoms:
 ```
@@ -234,7 +234,7 @@ Enter your symptoms:
 4. Check user balance
 5. If insufficient:
    ```
-   END Please pay KES 500 via Zenopay. 
+   END Please pay TZS 500 via Zenopay. 
    You will receive payment SMS.
    ```
 6. If sufficient:

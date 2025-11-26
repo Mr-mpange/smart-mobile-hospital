@@ -12,6 +12,7 @@ const doctorRoutes = require('./routes/doctor.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const voiceRoutes = require('./routes/voice.routes');
 const adminRoutes = require('./routes/admin.routes');
+const authRoutes = require('./routes/auth.routes');
 
 // Import cron jobs
 const cronJobs = require('./utils/cron');
@@ -58,6 +59,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/ussd', ussdRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/doctors', doctorRoutes);

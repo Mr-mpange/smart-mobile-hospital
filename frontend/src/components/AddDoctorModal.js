@@ -207,7 +207,7 @@ function AddDoctorModal({ isOpen, onClose, onSubmit }) {
             <div className="form-group">
               <label htmlFor="fee">
                 <FiDollarSign />
-                Consultation Fee (KES) *
+                Consultation Fee (TZS) *
               </label>
               <input
                 type="number"

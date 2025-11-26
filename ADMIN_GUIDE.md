@@ -76,7 +76,7 @@ Use the default credentials above to login.
    - Email
    - Password
    - Specialization
-   - Consultation Fee (KES)
+   - Consultation Fee (TZS)
 5. Click "Add Doctor"
 
 ### Via API

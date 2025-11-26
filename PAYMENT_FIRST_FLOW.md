@@ -65,7 +65,7 @@ if (inputs.length === 4) {
 
 ### 3. Free Offer (Special Case)
 - If user has free consultation offer
-- Shows KES 0 total
+- Shows TZS 0 total
 - Still requires confirmation (Option 1)
 - Applies offer before symptoms
 
@@ -84,19 +84,19 @@ if (inputs.length === 4) {
 CON PAYMENT REQUIRED
 
 Doctor: Dr. John Kamau
-Fee: KES 500
-Total: KES 500
+Fee: TZS 500
+Total: TZS 500
 
 Select payment method:
 1. M-Pesa
-2. Balance (KES 200)
+2. Balance (TZS 200)
 3. Back
 ```
 
 **After Payment:**
 ```
 CON Payment successful!
-Amount: KES 500
+Amount: TZS 500
 
 Now enter your symptoms:
 (At least 2 sentences)

@@ -14,7 +14,7 @@ After paying for consultation, patient receives SMS:
 Payment completed! Your consultation has been received.
 
 Doctor: Dr. John Kamau
-Amount: KES 500
+Amount: TZS 500
 Case: #123
 
 Doctor will respond via SMS within 5-30 minutes.
